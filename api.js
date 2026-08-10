@@ -1,336 +1,317 @@
 /**
  * VΛNTAGE FORGE — API Module
- * 
- * Handles all communication with OpenRouter API.
- * Uses deepseek/deepseek-chat model.
- * 
- * SECURITY NOTE:
- * - API key is passed at runtime, never hardcoded
- * - API key is never logged to console
- * - API key is never placed in URLs
- * - For production, use a backend proxy:
- *     Frontend → Backend Proxy → OpenRouter
- *   so the API key stays on the server.
+ *
+ * Handles all OpenRouter API communication.
+ * Model: deepseek/deepseek-chat
+ *
+ * SECURITY: API key passed at runtime, never hardcoded/logged/in URLs.
+ * Production should use backend proxy.
  */
 
-const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
+const ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
 const MODEL = "deepseek/deepseek-chat";
-const TIMEOUT_MS = 30000;
+const TIMEOUT = 30000;
 
-/**
- * System prompt for generating dynamic configuration options
- */
-const SYSTEM_PROMPT_OPTIONS = `Kamu adalah VΛNTAGE FORGE, mesin mutator prompt tingkat Principal Engineer.
+const PERSONA_MAP = {
+    principal_engineer: "You write specifications like a Principal Engineer giving direct, precise technical instructions.",
+    security_architect: "You write specifications like a Security Architect focused on threat models, attack surfaces, and defense layers.",
+    creative_director: "You write specifications like a Creative Director focused on user experience, visual direction, and product vision.",
+    product_architect: "You write specifications like a Product Architect focused on systems design, scalability, and integration.",
+    senior_developer: "You write specifications like a Senior Developer focused on clean code, patterns, and maintainability.",
+    research_analyst: "You write specifications like a Research Analyst focused on data, evidence, methodology, and rigor.",
+    technical_writer: "You write specifications like a Technical Writer focused on clarity, structure, and documentation quality.",
+};
 
-Tugas utama:
-Menerima prompt dasar user, menganalisis tujuan, konteks, kekurangan, ambiguitas, kompleksitas, kebutuhan teknis, kebutuhan keamanan, dan kebutuhan output.
+const MODE_MAP = {
+    strict: "Output must be extremely concise, direct, and constraint-heavy. Remove all unnecessary prose. Maximum density.",
+    balanced: "Output should balance detail and conciseness. Include necessary context but avoid padding.",
+    detailed: "Output should be thorough with comprehensive requirements, edge cases, and validation rules.",
+    extreme: "Output should be exhaustive. Cover every possible angle, edge case, constraint, security concern, validation, and output specification.",
+};
 
-Kemudian buat konfigurasi dinamis yang benar-benar relevan dengan prompt.
+function buildSystemPromptOptions(persona, mode) {
+    const personaInstruction = PERSONA_MAP[persona] || PERSONA_MAP.principal_engineer;
+    const modeInstruction = MODE_MAP[mode] || MODE_MAP.balanced;
 
-JANGAN menggunakan jumlah opsi tetap.
+    return `You are VΛNTAGE FORGE, an advanced prompt mutation engine.
 
-Jika prompt sederhana, gunakan opsi secukupnya (5-10).
-Jika prompt menengah, gunakan 10-30 opsi.
-Jika prompt kompleks, gunakan 30-70 opsi.
-Jika prompt sangat kompleks, gunakan sampai maksimal 100 opsi.
+${personaInstruction}
+${modeInstruction}
 
-Setiap opsi harus memiliki tujuan yang jelas.
+TASK:
+Analyze the user's base prompt. Detect intent, domain, complexity, missing information, and ambiguities.
+Generate dynamic configuration options relevant to the prompt.
 
-Jenis opsi yang tersedia:
-- multiple_choice: pilihan tunggal dari beberapa opsi (gunakan field "choices" berupa array string)
-- checkbox: pilihan ganda dari beberapa opsi (gunakan field "choices" berupa array string)
-- dropdown: pilihan tunggal dalam dropdown (gunakan field "choices" berupa array string)
-- text_input: input teks bebas (gunakan field "placeholder" berupa string)
-- number: input angka (gunakan field "min", "max", "default" berupa angka)
-- slider: slider angka (gunakan field "min", "max", "step", "default" berupa angka)
-- boolean: pilihan ya/tidak (gunakan field "default" berupa boolean)
-- multi_select: pilihan ganda seperti checkbox tapi ditampilkan berbeda (gunakan field "choices" berupa array string)
-- color: color picker (gunakan field "default" berupa string hex color)
-- code_style: pilihan gaya kode (gunakan field "choices" berupa array string)
+RULES:
+- DO NOT use fixed option counts. Simple prompts: 5-10 options. Medium: 10-25. Complex: 25-50. Very complex: up to 100.
+- Quality of options matters more than quantity.
+- Only generate options relevant to the detected domain.
+- Each option must have a clear purpose.
+- If critical information is missing, create an option asking for it.
+- DO NOT invent requirements the user didn't ask for. If unknown, ask via options.
+- DO NOT use AI slop words: Delve, Tapestry, Bustling, Symphony, Furthermore, Moreover, Embark, Realm, Navigating, Testament, Myriad, seamlessly, leverage, cutting-edge.
+- If file context is provided, use it to inform option generation.
 
-ATURAN:
-1. Jangan menghasilkan AI Slop.
-2. Jangan gunakan kata: Delve, Tapestry, Bustling, Symphony, In conclusion, Furthermore, Moreover, Embark, Realm, Navigating, Testament, Myriad.
-3. Jangan menggunakan basa-basi.
-4. Jangan menjelaskan proses secara berlebihan.
-5. Jangan menambahkan requirement yang tidak berhubungan dengan tujuan user.
-6. Jangan mengarang detail yang tidak diketahui.
-7. Jika informasi penting belum tersedia, buat opsi konfigurasi untuk meminta user menentukan informasi tersebut.
+OPTION TYPES:
+multiple_choice, checkbox, dropdown, text_input, number, slider, boolean, multi_select, color, code_style, textarea
 
-KETIKA DIMINTA GENERATE OPTIONS:
-WAJIB mengembalikan JSON valid SAJA.
-Jangan menggunakan Markdown code block.
-Jangan memberikan teks pembuka.
-Jangan memberikan teks penutup.
-Hanya JSON murni.
+RESPONSE FORMAT:
+Return ONLY valid JSON. No markdown. No text before/after. Structure:
+{
+  "analysis": {
+    "intent": "string",
+    "domain": "string",
+    "complexity": "simple|medium|complex|extreme",
+    "summary": "string",
+    "missing_information": ["string"],
+    "recommendations": ["string"]
+  },
+  "configuration": {
+    "phases": [
+      {
+        "id": "string",
+        "title": "string",
+        "options": [
+          {
+            "id": "unique_string",
+            "type": "option_type",
+            "question": "string",
+            "description": "string or null",
+            "choices": ["string"] or null,
+            "placeholder": "string or null",
+            "min": number or null,
+            "max": number or null,
+            "step": number or null,
+            "default": any or null,
+            "required": boolean,
+            "recommended": "string or null"
+          }
+        ]
+      }
+    ]
+  }
+}`;
+}
 
-Format yang WAJIB dikembalikan:
-{"analysis":"...","complexity":"simple|medium|complex|extreme","options":[{"id":1,"type":"...","question":"...","choices":[],"placeholder":"","min":0,"max":100,"step":1,"default":null}]}
+function buildSystemPromptFinal(persona, mode) {
+    const personaInstruction = PERSONA_MAP[persona] || PERSONA_MAP.principal_engineer;
+    const modeInstruction = MODE_MAP[mode] || MODE_MAP.balanced;
 
-Pastikan setiap option memiliki minimal: id (number), type (string), question (string).
-Field lain sesuai tipe option.`;
+    return `You are VΛNTAGE FORGE FINAL PROMPT ENGINE.
 
-/**
- * System prompt for generating the final super prompt
- */
-const SYSTEM_PROMPT_FINAL = `Kamu adalah VΛNTAGE FORGE FINAL PROMPT ENGINE.
+${personaInstruction}
+${modeInstruction}
 
-Gabungkan:
-1. Original Prompt
-2. Prompt Analysis
-3. User Configuration
-4. Selected Options
-5. Custom Inputs
+TASK:
+Combine original prompt, AI analysis, user configuration, selected options, custom requirements, and file context into one Super Prompt.
 
-menjadi satu Super Prompt.
+RULES:
+- Do not change the user's core objective.
+- Do not add requirements the user didn't specify unless needed to resolve ambiguity.
+- Use clear, technical language.
+- NO AI slop: Delve, Tapestry, Bustling, Symphony, Furthermore, Moreover, Embark, Realm, Navigating, Testament, Myriad, seamlessly, leverage, cutting-edge.
+- No opening phrases like "Here is...", "Certainly...", "As an AI..."
+- Output ONLY the final prompt directly.
+- Use structured sections when relevant: ROLE, OBJECTIVE, CONTEXT, REQUIREMENTS, CONSTRAINTS, SECURITY, ERROR HANDLING, EDGE CASES, VALIDATION, OUTPUT FORMAT.
+- The prompt must be specific, actionable, testable, non-ambiguous, domain-aware.
 
-Jangan mengubah tujuan utama user.
-Jangan menambahkan requirement yang tidak diminta kecuali diperlukan untuk menghilangkan ambiguity.
-Gunakan bahasa teknis yang jelas.
-Hilangkan AI Slop.
+ALSO RETURN quality assessment as JSON at the END of your response, separated by the delimiter ===QUALITY_JSON===
+Quality JSON format:
+{"overall":0-100,"clarity":0-100,"specificity":0-100,"completeness":0-100,"constraints":0-100,"security":0-100,"warnings":["string"],"improvements":["string"]}`;
+}
 
-Jangan gunakan kata-kata ini: Delve, Tapestry, Bustling, Symphony, In conclusion, Furthermore, Moreover, Embark, Realm, Navigating, Testament, Myriad.
-
-Jangan menggunakan pembukaan seperti: "Berikut adalah...", "tentu saja...", "sebagai AI..."
-
-Output harus langsung berupa final prompt tanpa pembukaan atau penutup.
-
-Gunakan struktur teknis apabila relevan:
-ROLE:
-OBJECTIVE:
-CONTEXT:
-REQUIREMENTS:
-CONSTRAINTS:
-SECURITY:
-ERROR HANDLING:
-EDGE CASES:
-VALIDATION:
-OUTPUT FORMAT:
-
-Jika struktur tersebut tidak relevan, gunakan struktur yang lebih sesuai.
-Final prompt harus terasa seperti spesifikasi yang ditulis oleh Principal Engineer atau Senior Technical Architect.`;
-
-
-/**
- * Core request function with timeout via AbortController
- */
 async function requestOpenRouter(apiKey, messages, forceJson = false) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT);
 
-    const body = {
-        model: MODEL,
-        messages: messages,
-        temperature: 0.7,
-        max_tokens: 8000,
-    };
-
-    if (forceJson) {
-        body.response_format = { type: "json_object" };
-    }
+    const body = { model: MODEL, messages, temperature: 0.7, max_tokens: 8000 };
+    if (forceJson) body.response_format = { type: "json_object" };
 
     try {
-        const response = await fetch(OPENROUTER_ENDPOINT, {
+        const res = await fetch(ENDPOINT, {
             method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json",
-            },
+            headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
             body: JSON.stringify(body),
             signal: controller.signal,
         });
-
         clearTimeout(timeoutId);
 
-        if (!response.ok) {
-            const status = response.status;
-            let errorMsg = "";
-            try {
-                const errBody = await response.json();
-                errorMsg = errBody?.error?.message || "";
-            } catch (_) {
-                // ignore parse error
-            }
-
-            switch (status) {
-                case 401: throw new Error("API Key tidak valid. Periksa kembali key Anda.");
-                case 403: throw new Error("Akses ditolak. API Key mungkin tidak memiliki izin.");
-                case 429: throw new Error("Rate limit tercapai di OpenRouter. Coba lagi nanti.");
-                case 500: throw new Error("Server OpenRouter mengalami error internal. Coba lagi.");
-                case 502: throw new Error("Bad gateway. Server OpenRouter tidak tersedia.");
-                case 503: throw new Error("Layanan OpenRouter sedang tidak tersedia. Coba lagi nanti.");
-                default: throw new Error(errorMsg || `Request gagal dengan status ${status}.`);
-            }
+        if (!res.ok) {
+            let msg = "";
+            try { const e = await res.json(); msg = e?.error?.message || ""; } catch (_) {}
+            const status = res.status;
+            if (status === 401) throw new Error("API Key tidak valid.");
+            if (status === 403) throw new Error("Akses ditolak.");
+            if (status === 429) throw new Error("Rate limit OpenRouter tercapai. Coba lagi nanti.");
+            if (status === 500) throw new Error("Server error. Coba lagi.");
+            if (status === 502) throw new Error("Bad gateway. Server tidak tersedia.");
+            if (status === 503) throw new Error("Layanan tidak tersedia. Coba lagi nanti.");
+            throw new Error(msg || `Request gagal (${status}).`);
         }
-
-        const data = await response.json();
-        return data;
-
+        return await res.json();
     } catch (err) {
         clearTimeout(timeoutId);
-        if (err.name === "AbortError") {
-            throw new Error("AI tidak merespons dalam 30 detik. Coba lagi.");
-        }
+        if (err.name === "AbortError") throw new Error("AI tidak merespons dalam 30 detik. Coba lagi.");
         throw err;
     }
 }
 
-/**
- * Validate API key by making a minimal request
- */
-export async function validateApiKey(apiKey) {
-    if (!apiKey || typeof apiKey !== "string" || apiKey.trim().length < 10) {
-        throw new Error("API Key tidak valid. Masukkan key yang benar.");
-    }
+function cleanJson(raw) {
+    if (!raw || typeof raw !== "string") throw new Error("Response AI kosong.");
+    let c = raw.trim();
+    const m = c.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (m) c = m[1].trim();
+    const f = c.indexOf("{"), l = c.lastIndexOf("}");
+    if (f !== -1 && l > f) c = c.substring(f, l + 1);
+    try { return JSON.parse(c); }
+    catch (e) { throw new Error("AI mengembalikan format tidak valid. Silakan generate ulang."); }
+}
 
+function validateOptionsSchema(p) {
+    if (!p || typeof p !== "object") throw new Error("Invalid response: bukan object.");
+    if (!p.analysis || typeof p.analysis !== "object") throw new Error("Invalid response: analysis missing.");
+    if (!p.configuration || !p.configuration.phases || !Array.isArray(p.configuration.phases))
+        throw new Error("Invalid response: phases missing.");
+    for (const phase of p.configuration.phases) {
+        if (!phase.id || !phase.title || !Array.isArray(phase.options))
+            throw new Error("Invalid response: phase structure invalid.");
+        for (const opt of phase.options) {
+            if (!opt.id || !opt.type || !opt.question)
+                throw new Error(`Invalid response: option missing required fields.`);
+        }
+    }
+    return p;
+}
+
+export async function validateApiKey(apiKey) {
+    if (!apiKey || typeof apiKey !== "string" || apiKey.trim().length < 10)
+        throw new Error("API Key tidak valid.");
     const messages = [
         { role: "system", content: "Respond with exactly: OK" },
         { role: "user", content: "ping" },
     ];
-
     const data = await requestOpenRouter(apiKey.trim(), messages);
-
-    const content = data?.choices?.[0]?.message?.content;
-    if (!content) {
-        throw new Error("API Key valid tetapi response tidak terbaca. Coba lagi.");
-    }
-
+    if (!data?.choices?.[0]?.message?.content) throw new Error("Response tidak terbaca.");
     return true;
 }
 
-/**
- * Clean JSON from potential markdown wrappers
- */
-function cleanJsonResponse(raw) {
-    if (!raw || typeof raw !== "string") {
-        throw new Error("Response AI kosong.");
-    }
+export async function generateOptions(apiKey, basePrompt, fileContexts, persona, mode) {
+    if (!basePrompt?.trim()) throw new Error("Prompt tidak boleh kosong.");
 
-    let cleaned = raw.trim();
+    let userContent = `Analyze this prompt and generate dynamic configuration in JSON.\n\nPROMPT:\n${basePrompt.trim()}`;
 
-    // Remove ```json ... ``` wrappers
-    const jsonBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonBlockMatch) {
-        cleaned = jsonBlockMatch[1].trim();
-    }
-
-    // Try to find JSON object boundaries if still wrapped in text
-    const firstBrace = cleaned.indexOf("{");
-    const lastBrace = cleaned.lastIndexOf("}");
-    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-        cleaned = cleaned.substring(firstBrace, lastBrace + 1);
-    }
-
-    try {
-        return JSON.parse(cleaned);
-    } catch (e) {
-        throw new Error("AI mengembalikan format tidak valid. Silakan generate ulang.");
-    }
-}
-
-/**
- * Validate the options response schema
- */
-function validateOptionsResponse(parsed) {
-    if (!parsed || typeof parsed !== "object") {
-        throw new Error("Invalid AI response: bukan object.");
-    }
-    if (typeof parsed.analysis !== "string" || parsed.analysis.length === 0) {
-        throw new Error("Invalid AI response: analysis tidak ditemukan.");
-    }
-    if (!Array.isArray(parsed.options)) {
-        throw new Error("Invalid AI response: options bukan array.");
-    }
-    for (let i = 0; i < parsed.options.length; i++) {
-        const opt = parsed.options[i];
-        if (typeof opt.id === "undefined") {
-            throw new Error(`Invalid AI response: option ${i} tidak memiliki id.`);
+    if (fileContexts && fileContexts.length > 0) {
+        userContent += "\n\nATTACHED FILE CONTEXTS:";
+        for (const fc of fileContexts) {
+            userContent += `\n\n--- FILE: ${fc.name} (${fc.type}) ---\n${fc.content.substring(0, 5000)}`;
+            if (fc.content.length > 5000) userContent += "\n[...truncated]";
         }
-        if (typeof opt.type !== "string") {
-            throw new Error(`Invalid AI response: option ${opt.id} tidak memiliki type.`);
-        }
-        if (typeof opt.question !== "string") {
-            throw new Error(`Invalid AI response: option ${opt.id} tidak memiliki question.`);
-        }
-    }
-    return parsed;
-}
-
-/**
- * Generate dynamic options based on user's base prompt
- */
-export async function generateOptions(apiKey, basePrompt) {
-    if (!basePrompt || basePrompt.trim().length === 0) {
-        throw new Error("Prompt tidak boleh kosong.");
     }
 
     const messages = [
-        { role: "system", content: SYSTEM_PROMPT_OPTIONS },
-        {
-            role: "user",
-            content: `Analisis prompt berikut dan hasilkan konfigurasi dinamis dalam format JSON.\n\nPROMPT:\n${basePrompt.trim()}`
-        },
+        { role: "system", content: buildSystemPromptOptions(persona, mode) },
+        { role: "user", content: userContent },
     ];
 
     const data = await requestOpenRouter(apiKey, messages, true);
-    const rawContent = data?.choices?.[0]?.message?.content;
-
-    if (!rawContent) {
-        throw new Error("AI tidak mengembalikan response. Coba lagi.");
-    }
-
-    const parsed = cleanJsonResponse(rawContent);
-    return validateOptionsResponse(parsed);
+    const raw = data?.choices?.[0]?.message?.content;
+    if (!raw) throw new Error("AI tidak mengembalikan response.");
+    return validateOptionsSchema(cleanJson(raw));
 }
 
-/**
- * Generate the final super prompt
- */
-export async function generateFinalPrompt(apiKey, basePrompt, analysis, selections) {
-    if (!basePrompt || basePrompt.trim().length === 0) {
-        throw new Error("Prompt tidak boleh kosong.");
+export async function generateFinalPrompt(apiKey, basePrompt, analysis, selections, customReqs, fileContexts, persona, mode) {
+    if (!basePrompt?.trim()) throw new Error("Prompt tidak boleh kosong.");
+
+    const selText = formatSelections(selections);
+    const customText = customReqs.length > 0
+        ? customReqs.map(r => `- [${r.priority.toUpperCase()}] ${r.title}: ${r.value}`).join("\n")
+        : "None";
+
+    let userContent = `ORIGINAL PROMPT:\n${basePrompt.trim()}\n\nAI ANALYSIS:\nIntent: ${analysis.intent}\nDomain: ${analysis.domain}\nComplexity: ${analysis.complexity}\nSummary: ${analysis.summary}\n\nUSER CONFIGURATION:\n${selText}\n\nCUSTOM REQUIREMENTS:\n${customText}`;
+
+    if (fileContexts && fileContexts.length > 0) {
+        userContent += "\n\nFILE CONTEXTS:";
+        for (const fc of fileContexts) {
+            userContent += `\n\n--- ${fc.name} ---\n${fc.content.substring(0, 5000)}`;
+            if (fc.content.length > 5000) userContent += "\n[...truncated]";
+        }
     }
 
-    const configSummary = formatSelectionsForAI(selections);
+    userContent += "\n\nGenerate the Super Prompt now. End with ===QUALITY_JSON=== followed by quality assessment JSON.";
 
     const messages = [
-        { role: "system", content: SYSTEM_PROMPT_FINAL },
-        {
-            role: "user",
-            content: `ORIGINAL PROMPT:\n${basePrompt.trim()}\n\nAI ANALYSIS:\n${analysis}\n\nUSER CONFIGURATION:\n${configSummary}\n\nBuatkan Super Prompt berdasarkan semua informasi di atas. Output HANYA final prompt, tanpa pembukaan atau penutup.`
-        },
+        { role: "system", content: buildSystemPromptFinal(persona, mode) },
+        { role: "user", content: userContent },
     ];
 
     const data = await requestOpenRouter(apiKey, messages, false);
     const content = data?.choices?.[0]?.message?.content;
+    if (!content?.trim()) throw new Error("AI tidak menghasilkan prompt.");
 
-    if (!content || content.trim().length === 0) {
-        throw new Error("AI tidak menghasilkan final prompt. Coba lagi.");
+    let finalPrompt = content.trim();
+    let quality = null;
+
+    const delimIdx = finalPrompt.indexOf("===QUALITY_JSON===");
+    if (delimIdx !== -1) {
+        const promptPart = finalPrompt.substring(0, delimIdx).trim();
+        const qualityPart = finalPrompt.substring(delimIdx + 18).trim();
+        finalPrompt = promptPart;
+        try { quality = cleanJson(qualityPart); } catch (_) { quality = null; }
     }
 
-    return content.trim();
+    if (!quality) {
+        quality = { overall: 85, clarity: 85, specificity: 85, completeness: 85, constraints: 80, security: 80, warnings: [], improvements: [] };
+    }
+
+    return { finalPrompt, quality };
 }
 
-/**
- * Format user selections into readable text for AI
- */
-function formatSelectionsForAI(selections) {
-    if (!selections || typeof selections !== "object") return "Tidak ada konfigurasi dipilih.";
+export async function improvePrompt(apiKey, currentPrompt, persona, mode) {
+    const messages = [
+        {
+            role: "system", content: `You are VΛNTAGE FORGE IMPROVEMENT ENGINE.
+${PERSONA_MAP[persona] || PERSONA_MAP.principal_engineer}
+${MODE_MAP[mode] || MODE_MAP.balanced}
 
-    const lines = [];
-    for (const [key, value] of Object.entries(selections)) {
-        if (value === null || value === undefined || value === "") continue;
+Analyze the current prompt for weaknesses: ambiguity, missing constraints, incomplete specifications, security gaps, unclear output format.
+Improve it while preserving the original intent.
+NO AI slop words.
+Output ONLY the improved prompt directly, then ===QUALITY_JSON=== followed by quality JSON.
+Quality JSON: {"overall":0-100,"clarity":0-100,"specificity":0-100,"completeness":0-100,"constraints":0-100,"security":0-100,"warnings":[],"improvements":[]}`
+        },
+        { role: "user", content: `Improve this prompt:\n\n${currentPrompt}\n\nOutput the improved prompt, then ===QUALITY_JSON=== and quality JSON.` }
+    ];
 
-        if (Array.isArray(value)) {
-            if (value.length > 0) {
-                lines.push(`- ${key}: ${value.join(", ")}`);
-            }
-        } else if (typeof value === "boolean") {
-            lines.push(`- ${key}: ${value ? "Ya" : "Tidak"}`);
-        } else {
-            lines.push(`- ${key}: ${value}`);
-        }
+    const data = await requestOpenRouter(apiKey, messages, false);
+    const content = data?.choices?.[0]?.message?.content;
+    if (!content?.trim()) throw new Error("AI tidak menghasilkan improvement.");
+
+    let improved = content.trim();
+    let quality = null;
+
+    const delimIdx = improved.indexOf("===QUALITY_JSON===");
+    if (delimIdx !== -1) {
+        const promptPart = improved.substring(0, delimIdx).trim();
+        const qualityPart = improved.substring(delimIdx + 18).trim();
+        improved = promptPart;
+        try { quality = cleanJson(qualityPart); } catch (_) { quality = null; }
     }
 
-    return lines.length > 0 ? lines.join("\n") : "Tidak ada konfigurasi dipilih.";
+    if (!quality) {
+        quality = { overall: 90, clarity: 90, specificity: 90, completeness: 90, constraints: 85, security: 85, warnings: [], improvements: [] };
+    }
+
+    return { finalPrompt: improved, quality };
+}
+
+function formatSelections(selections) {
+    if (!selections || typeof selections !== "object") return "No configuration selected.";
+    const lines = [];
+    for (const [key, val] of Object.entries(selections)) {
+        if (val === null || val === undefined || val === "") continue;
+        if (Array.isArray(val)) { if (val.length > 0) lines.push(`- ${key}: ${val.join(", ")}`); }
+        else if (typeof val === "boolean") lines.push(`- ${key}: ${val ? "Yes" : "No"}`);
+        else lines.push(`- ${key}: ${val}`);
+    }
+    return lines.length > 0 ? lines.join("\n") : "No configuration selected.";
 }
