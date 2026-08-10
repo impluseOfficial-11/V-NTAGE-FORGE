@@ -5,252 +5,367 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <title>VΛNTAGE FORGE — Dynamic AI Prompt Mutation Engine</title>
-    <meta name="description" content="VΛNTAGE FORGE: Transform simple prompts into complex, structured, production-ready AI prompts.">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-
-    <!-- ===================== SPLASH SCREEN ===================== -->
-    <div id="splash-screen" aria-label="Loading VΛNTAGE FORGE">
-        <video
-            id="splash-video"
-            autoplay
-            muted
-            playsinline
-            disablePictureInPicture
-            controlsList="nodownload nofullscreen noremoteplayback">
-            <source src="https://www.image2url.com/r2/default/videos/1786291089897-ebb8e0c8-c24c-4ee2-9a39-e68b832ac1b5.mp4" type="video/mp4">
-        </video>
-        <h1 id="vintage-logo" aria-hidden="true">VΛNTAGE</h1>
-    </div>
-
-    <!-- ===================== BACKGROUND VIDEO ===================== -->
-    <video
-        id="bg-video"
-        autoplay
-        muted
-        loop
-        playsinline
-        disablePictureInPicture
-        controlsList="nodownload nofullscreen noremoteplayback"
-        aria-hidden="true">
-        <source src="https://www.image2url.com/r2/default/videos/1786291905834-cace1863-06d7-42bf-9b0d-e9a75be94a2a.mp4" type="video/mp4">
-    </video>
-    <div id="bg-overlay" aria-hidden="true"></div>
-
-    <!-- ===================== SCANLINE OVERLAY ===================== -->
-    <div id="scanline-overlay" aria-hidden="true"></div>
-
-    <!-- ===================== MAIN APP ===================== -->
-    <div id="app" class="app-hidden">
-
-        <!-- SIDEBAR -->
-        <aside id="sidebar" role="navigation" aria-label="Main navigation">
-            <div class="sidebar-top">
-                <div class="sidebar-logo" aria-label="VΛNTAGE FORGE logo">
-                    <span class="logo-line1">VΛNTAGE</span>
-                    <span class="logo-line2">FORGE</span>
-                </div>
-                <nav class="sidebar-menu">
-                    <button class="menu-btn active" data-panel="dashboard" aria-label="Dashboard" aria-current="page">
-                        <span class="menu-icon">▣</span>
-                        <span class="menu-label">DASHBOARD</span>
-                    </button>
-                    <button class="menu-btn" data-panel="history" aria-label="History">
-                        <span class="menu-icon">◫</span>
-                        <span class="menu-label">HISTORY</span>
-                    </button>
-                    <button class="menu-btn" data-panel="settings" aria-label="Settings">
-                        <span class="menu-icon">⚙</span>
-                        <span class="menu-label">SETTINGS</span>
-                    </button>
-                </nav>
-            </div>
-            <div class="sidebar-footer">
-                <div class="credit-line">Made by : <span class="credit-name">VΛNTAGE</span></div>
-                <div class="credit-desc">Bertujuan untuk mengembangkan website dari vibe coder</div>
-            </div>
-        </aside>
-
-        <!-- MOBILE SIDEBAR TOGGLE -->
-        <button id="mobile-menu-toggle" aria-label="Toggle sidebar menu">
-            <span></span><span></span><span></span>
-        </button>
-        <div id="sidebar-backdrop" aria-hidden="true"></div>
-
-        <!-- MAIN CONTENT -->
-        <main id="main-content" role="main">
-
-            <!-- STATUS BAR -->
-            <div id="status-bar" aria-live="polite">
-                <span class="status-dot" id="status-dot"></span>
-                <span class="status-text" id="status-text">SYSTEM READY</span>
-            </div>
-
-            <!-- ======= PANEL: DASHBOARD ======= -->
-            <section id="panel-dashboard" class="panel active">
-
-                <!-- VIDEO CARD -->
-                <div class="video-card-wrapper">
-                    <div class="video-card" aria-label="VΛNTAGE FORGE intro video">
-                        <video
-                            id="card-video"
-                            autoplay
-                            muted
-                            loop
-                            playsinline
-                            disablePictureInPicture
-                            controlsList="nodownload nofullscreen noremoteplayback">
-                            <source src="https://www.image2url.com/r2/default/videos/1786291391783-8d738f79-929f-4622-831a-9735e72cc89b.mp4" type="video/mp4">
-                        </video>
-                    </div>
-                </div>
-
-                <!-- API KEY GATE -->
-                <div id="api-gate" class="section-block">
-                    <div class="section-label">OPENROUTER API KEY</div>
-                    <div class="section-sublabel">Masukkan API key OpenRouter untuk mengaktifkan engine</div>
-                    <div class="api-input-row">
-                        <div class="api-input-wrap">
-                            <input
-                                type="password"
-                                id="api-key-input"
-                                placeholder="sk-or-v1-..."
-                                autocomplete="off"
-                                spellcheck="false"
-                                aria-label="OpenRouter API Key">
-                            <button id="toggle-key-vis" class="icon-btn" aria-label="Show or hide API key" type="button">SHOW</button>
-                        </div>
-                        <button id="validate-btn" class="primary-btn" type="button">
-                            <span class="btn-text">VALIDATE &amp; UNLOCK</span>
-                            <span class="btn-spinner hidden" aria-hidden="true"></span>
+    <meta name="description" content="VΛNTAGE FORGE: Transform <button id="start-upgrade-btn" class="primary-btn upgrade-btn" type="button" disabled>
+                            <span class="btn-content">
+                                <span class="btn-text">MULAI UPGRADE</span>
+                            </span>
+                            <span class="btn-spinner hidden"></span>
                         </button>
                     </div>
-                    <div id="api-gate-msg" class="gate-msg" aria-live="polite"></div>
-                </div>
 
-                <!-- MAIN FEATURE (hidden until unlocked) -->
-                <div id="main-feature" class="main-feature-hidden">
-
-                    <!-- PROMPT INPUT -->
-                    <div class="section-block" id="prompt-section">
-                        <div class="section-label">BASE PROMPT</div>
-                        <div class="section-sublabel">Masukkan prompt yang ingin diupgrade oleh VΛNTAGE FORGE</div>
-                        <textarea
-                            id="base-prompt"
-                            rows="6"
-                            placeholder="Contoh: Buatkan website portfolio untuk developer..."
-                            spellcheck="true"
-                            aria-label="Base prompt input"></textarea>
-                        <div class="prompt-meta">
-                            <span id="char-counter" class="char-counter">0 characters</span>
-                            <span id="char-warning" class="char-warning hidden">WARNING: Prompt sangat panjang. Processing mungkin membutuhkan waktu lebih lama.</span>
+                    <!-- AI PROCESSING STATUS -->
+                    <div id="processing-section" class="forge-panel hidden">
+                        <div class="processing-visual">
+                            <div class="processing-ring"></div>
+                            <div class="processing-status" id="processing-status">ANALYZING INTENT</div>
                         </div>
-                        <button id="start-upgrade-btn" class="primary-btn upgrade-btn" type="button" disabled>
-                            <span class="btn-text">MULAI UPGRADE</span>
-                            <span class="btn-spinner hidden" aria-hidden="true"></span>
-                        </button>
                     </div>
 
                     <!-- AI ANALYSIS -->
-                    <div id="analysis-section" class="section-block hidden">
-                        <div class="section-label">AI ANALYSIS</div>
-                        <div id="analysis-content" class="analysis-box"></div>
-                        <div class="analysis-meta">
-                            <span class="meta-tag">Complexity: <strong id="complexity-tag">—</strong></span>
-                            <span class="meta-tag">Options: <strong id="options-count-tag">—</strong></span>
+                    <div id="analysis-section" class="forge-panel hidden">
+                        <div class="panel-header">
+                            <svg class="panel-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><path d="M10 6v4l3 2"/></svg>
+                            <div class="panel-titles">
+                                <h2 class="panel-title">AI ANALYSIS</h2>
+                                <p class="panel-subtitle">Hasil analisis engine terhadap prompt</p>
+                            </div>
+                        </div>
+                        <div class="analysis-grid">
+                            <div class="analysis-card">
+                                <span class="analysis-label">INTENT</span>
+                                <span class="analysis-value" id="analysis-intent">—</span>
+                            </div>
+                            <div class="analysis-card">
+                                <span class="analysis-label">DOMAIN</span>
+                                <span class="analysis-value" id="analysis-domain">—</span>
+                            </div>
+                            <div class="analysis-card">
+                                <span class="analysis-label">COMPLEXITY</span>
+                                <span class="analysis-value" id="analysis-complexity">—</span>
+                            </div>
+                            <div class="analysis-card full-width">
+                                <span class="analysis-label">ANALYSIS</span>
+                                <span class="analysis-value" id="analysis-text">—</span>
+                            </div>
+                            <div class="analysis-card" id="analysis-missing-card">
+                                <span class="analysis-label">MISSING INFORMATION</span>
+                                <div class="analysis-list" id="analysis-missing">—</div>
+                            </div>
+                            <div class="analysis-card" id="analysis-recs-card">
+                                <span class="analysis-label">RECOMMENDATIONS</span>
+                                <div class="analysis-list" id="analysis-recommendations">—</div>
+                            </div>
                         </div>
                     </div>
 
-                    <!-- DYNAMIC OPTIONS -->
-                    <div id="options-section" class="section-block hidden">
-                        <div class="section-label">DYNAMIC CONFIGURATION</div>
-                        <div class="section-sublabel">Konfigurasi opsi di bawah untuk menyesuaikan prompt akhir</div>
-                        <div id="options-pagination" class="options-pagination hidden">
-                            <button id="opt-prev" class="pagination-btn" type="button" aria-label="Previous page" disabled>◂ PREV</button>
-                            <span id="opt-page-info" class="page-info">Page 1 / 1</span>
-                            <button id="opt-next" class="pagination-btn" type="button" aria-label="Next page" disabled>NEXT ▸</button>
+                    <!-- CONTEXT STACK -->
+                    <div id="context-section" class="forge-panel hidden">
+                        <div class="panel-header">
+                            <svg class="panel-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="2" width="14" height="4" rx="1"/><rect x="3" y="8" width="14" height="4" rx="1"/><rect x="3" y="14" width="14" height="4" rx="1"/></svg>
+                            <div class="panel-titles">
+                                <h2 class="panel-title">CONTEXT STACK</h2>
+                                <p class="panel-subtitle">Context yang akan digunakan untuk synthesis</p>
+                            </div>
                         </div>
+                        <div id="context-items" class="context-items"></div>
+                    </div>
+
+                    <!-- DYNAMIC CONFIGURATION (MULTI-PHASE) -->
+                    <div id="config-section" class="forge-panel hidden">
+                        <div class="panel-header">
+                            <svg class="panel-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 5h14M3 10h14M3 15h14"/><circle cx="7" cy="5" r="2"/><circle cx="13" cy="10" r="2"/><circle cx="9" cy="15" r="2"/></svg>
+                            <div class="panel-titles">
+                                <h2 class="panel-title">DYNAMIC CONFIGURATION</h2>
+                                <p class="panel-subtitle" id="config-subtitle">Konfigurasi opsi untuk menyesuaikan prompt akhir</p>
+                            </div>
+                        </div>
+                        <!-- Phase navigation -->
+                        <div class="phase-nav" id="phase-nav"></div>
+                        <!-- Progress -->
+                        <div class="config-progress">
+                            <div class="progress-bar-track">
+                                <div class="progress-bar-fill" id="config-progress-fill"></div>
+                            </div>
+                            <span class="progress-text" id="config-progress-text">0 / 0</span>
+                        </div>
+                        <!-- Options -->
                         <div id="options-grid" class="options-grid"></div>
-                        <button id="generate-final-btn" class="primary-btn generate-btn" type="button">
-                            <span class="btn-text">GENERATE FINAL PROMPT</span>
-                            <span class="btn-spinner hidden" aria-hidden="true"></span>
+                        <!-- Phase controls -->
+                        <div class="phase-controls">
+                            <button id="phase-prev" class="ctrl-btn" type="button" disabled>
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="12,4 6,10 12,16"/></svg>
+                                BACK
+                            </button>
+                            <button id="auto-configure-btn" class="ctrl-btn accent" type="button">AUTO CONFIGURE</button>
+                            <button id="add-custom-btn" class="ctrl-btn" type="button">+ CUSTOM</button>
+                            <button id="phase-next" class="ctrl-btn" type="button" disabled>
+                                NEXT
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><polyline points="8,4 14,10 8,16"/></svg>
+                            </button>
+                        </div>
+                        <!-- Generate final -->
+                        <button id="generate-final-btn" class="primary-btn generate-btn hidden" type="button">
+                            <span class="btn-content"><span class="btn-text">GENERATE FINAL PROMPT</span></span>
+                            <span class="btn-spinner hidden"></span>
                         </button>
                     </div>
 
                     <!-- FINAL PROMPT -->
-                    <div id="final-section" class="section-block hidden">
-                        <div class="section-label">SUPER PROMPT</div>
+                    <div id="final-section" class="forge-panel hidden">
+                        <div class="panel-header">
+                            <svg class="panel-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 2h12l0 16H4z"/><path d="M7 6h6M7 9h6M7 12h4"/></svg>
+                            <div class="panel-titles">
+                                <h2 class="panel-title">SUPER PROMPT</h2>
+                                <p class="panel-subtitle">Prompt final yang telah dioptimasi</p>
+                            </div>
+                        </div>
+                        <!-- Quality Score -->
+                        <div class="quality-section" id="quality-section">
+                            <div class="quality-main">
+                                <span class="quality-label">PROMPT QUALITY</span>
+                                <div class="quality-bar-track">
+                                    <div class="quality-bar-fill" id="quality-bar-fill"></div>
+                                </div>
+                                <span class="quality-score" id="quality-score">—</span>
+                            </div>
+                            <div class="quality-breakdown" id="quality-breakdown"></div>
+                            <div class="quality-warnings" id="quality-warnings"></div>
+                        </div>
+                        <!-- Prompt output -->
                         <textarea id="final-prompt" readonly rows="16" aria-label="Generated final prompt"></textarea>
                         <div class="final-actions">
-                            <button id="copy-btn" class="action-btn" type="button" aria-label="Copy to clipboard">COPY TO CLIPBOARD</button>
-                            <button id="regenerate-btn" class="action-btn" type="button" aria-label="Regenerate final prompt">REGENERATE</button>
-                            <button id="save-history-btn" class="action-btn" type="button" aria-label="Save to history">SAVE TO HISTORY</button>
+                            <button id="copy-btn" class="action-btn" type="button">
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><rect x="6" y="6" width="11" height="11" rx="1"/><path d="M3 14V3h11"/></svg>
+                                COPY
+                            </button>
+                            <button id="edit-mode-btn" class="action-btn" type="button">
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M12 2l6 6-10 10H2v-6z"/></svg>
+                                EDIT
+                            </button>
+                            <button id="improve-btn" class="action-btn" type="button">
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M10 2v16M2 10l8-8 8 8"/></svg>
+                                IMPROVE
+                            </button>
+                            <button id="regenerate-btn" class="action-btn" type="button">
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M2 10a8 8 0 0114-5M18 10a8 8 0 01-14 5"/><polyline points="2,4 2,10 8,10"/><polyline points="18,16 18,10 12,10"/></svg>
+                                REGENERATE
+                            </button>
+                            <button id="save-history-btn" class="action-btn" type="button">
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M3 3h11l3 3v11H3z"/><rect x="6" y="3" width="8" height="5"/><rect x="6" y="12" width="8" height="5"/></svg>
+                                SAVE
+                            </button>
+                            <button id="export-txt-btn" class="action-btn" type="button">
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M10 2v12M6 10l4 4 4-4M3 16h14"/></svg>
+                                .TXT
+                            </button>
+                            <button id="export-json-btn" class="action-btn" type="button">
+                                <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" width="14" height="14"><path d="M10 2v12M6 10l4 4 4-4M3 16h14"/></svg>
+                                .JSON
+                            </button>
+                        </div>
+                        <!-- Version history -->
+                        <div id="version-history" class="version-history hidden">
+                            <div class="panel-header compact">
+                                <h3 class="panel-title small">GENERATION HISTORY</h3>
+                            </div>
+                            <div id="version-list" class="version-list"></div>
+                        </div>
+                        <!-- Diff view -->
+                        <div id="diff-section" class="diff-section hidden">
+                            <div class="panel-header compact">
+                                <h3 class="panel-title small">PROMPT DIFF</h3>
+                            </div>
+                            <div id="diff-output" class="diff-output"></div>
                         </div>
                     </div>
 
                 </div>
             </section>
 
-            <!-- ======= PANEL: HISTORY ======= -->
-            <section id="panel-history" class="panel">
-                <div class="section-label">PROMPT HISTORY</div>
-                <div class="section-sublabel">Riwayat prompt yang telah di-generate</div>
-                <div id="history-list" class="history-list">
-                    <div class="history-empty">Belum ada history tersimpan.</div>
+            <!-- ============ PANEL: HISTORY ============ -->
+            <section id="panel-history" class="panel" data-panel="history">
+                <div class="forge-panel">
+                    <div class="panel-header">
+                        <svg class="panel-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="8"/><polyline points="10,5 10,10 14,12"/></svg>
+                        <div class="panel-titles">
+                            <h2 class="panel-title">PROMPT HISTORY</h2>
+                            <p class="panel-subtitle">Riwayat prompt yang telah di-generate</p>
+                        </div>
+                    </div>
+                    <div id="history-list" class="history-list">
+                        <div class="empty-state">Belum ada history tersimpan.</div>
+                    </div>
                 </div>
             </section>
 
-            <!-- ======= PANEL: SETTINGS ======= -->
-            <section id="panel-settings" class="panel">
-                <div class="section-label">SETTINGS</div>
-
-                <div class="settings-group">
-                    <div class="settings-item">
-                        <span class="settings-key">API Key Status</span>
-                        <span class="settings-value" id="settings-api-status">NOT SET</span>
+            <!-- ============ PANEL: SETTINGS ============ -->
+            <section id="panel-settings" class="panel" data-panel="settings">
+                <div class="forge-panel">
+                    <div class="panel-header">
+                        <svg class="panel-icon" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="10" cy="10" r="3"/><path d="M10 1v3M10 16v3M1 10h3M16 10h3M3.5 3.5l2 2M14.5 14.5l2 2M3.5 16.5l2-2M14.5 5.5l2-2"/></svg>
+                        <div class="panel-titles">
+                            <h2 class="panel-title">SETTINGS</h2>
+                            <p class="panel-subtitle">Konfigurasi aplikasi</p>
+                        </div>
                     </div>
-                    <div class="settings-item">
-                        <span class="settings-key">Application Version</span>
-                        <span class="settings-value">v1.0.0</span>
-                    </div>
-                    <div class="settings-item">
-                        <span class="settings-key">Security Status</span>
-                        <span class="settings-value" id="settings-security-status">ACTIVE — Frontend deterrence enabled</span>
-                    </div>
-                </div>
 
-                <div class="settings-actions">
-                    <button id="settings-clear-key" class="action-btn danger-btn" type="button">CLEAR API KEY</button>
-                    <button id="settings-clear-history" class="action-btn danger-btn" type="button">CLEAR ALL HISTORY</button>
-                </div>
+                    <div class="settings-grid">
+                        <div class="settings-card">
+                            <h3 class="settings-card-title">CONNECTION</h3>
+                            <div class="settings-row">
+                                <span class="settings-key">API Key Status</span>
+                                <span class="settings-value" id="settings-api-status">NOT SET</span>
+                            </div>
+                            <div class="settings-row">
+                                <span class="settings-key">Model</span>
+                                <span class="settings-value">deepseek/deepseek-chat</span>
+                            </div>
+                            <div class="settings-row">
+                                <span class="settings-key">Version</span>
+                                <span class="settings-value">v2.0.0</span>
+                            </div>
+                        </div>
 
-                <div class="settings-note">
-                    <div class="section-sublabel">PRODUCTION SECURITY NOTE</div>
-                    <p>Untuk deployment production, API key sebaiknya TIDAK disimpan di frontend. Gunakan arsitektur backend proxy:</p>
-                    <pre class="settings-arch">Frontend → Backend API Proxy → OpenRouter</pre>
-                    <p>API key harus berada di server/environment variable. Frontend-only security hanya bersifat deterrence, bukan perlindungan absolut.</p>
+                        <div class="settings-card">
+                            <h3 class="settings-card-title">SECURITY STATUS</h3>
+                            <div class="settings-row">
+                                <span class="settings-key">Client Protection</span>
+                                <span class="settings-value status-on">● ACTIVE</span>
+                            </div>
+                            <div class="settings-row">
+                                <span class="settings-key">Request Throttle</span>
+                                <span class="settings-value status-on">● ACTIVE</span>
+                            </div>
+                            <div class="settings-row">
+                                <span class="settings-key">API Key Exposure</span>
+                                <span class="settings-value status-warn">● CLIENT-SIDE</span>
+                            </div>
+                            <div class="settings-row">
+                                <span class="settings-key">Production Rec.</span>
+                                <span class="settings-value status-warn">● USE SERVER PROXY</span>
+                            </div>
+                        </div>
+
+                        <div class="settings-card">
+                            <h3 class="settings-card-title">VISUAL</h3>
+                            <div class="settings-row">
+                                <span class="settings-key">Background Video</span>
+                                <label class="toggle-label compact">
+                                    <input type="checkbox" id="setting-bg-video" checked>
+                                    <span class="toggle-switch"></span>
+                                </label>
+                            </div>
+                            <div class="settings-row">
+                                <span class="settings-key">Particles</span>
+                                <label class="toggle-label compact">
+                                    <input type="checkbox" id="setting-particles" checked>
+                                    <span class="toggle-switch"></span>
+                                </label>
+                            </div>
+                            <div class="settings-row">
+                                <span class="settings-key">Cursor Glow</span>
+                                <label class="toggle-label compact">
+                                    <input type="checkbox" id="setting-cursor-glow" checked>
+                                    <span class="toggle-switch"></span>
+                                </label>
+                            </div>
+                            <div class="settings-row">
+                                <span class="settings-key">Reduced Motion</span>
+                                <label class="toggle-label compact">
+                                    <input type="checkbox" id="setting-reduced-motion">
+                                    <span class="toggle-switch"></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="settings-card">
+                            <h3 class="settings-card-title">DATA</h3>
+                            <div class="settings-actions-col">
+                                <button id="settings-clear-key" class="action-btn danger" type="button">CLEAR API KEY</button>
+                                <button id="settings-clear-history" class="action-btn danger" type="button">CLEAR ALL HISTORY</button>
+                                <button id="settings-reset-app" class="action-btn danger" type="button">RESET APPLICATION</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="settings-note">
+                        <h3 class="settings-card-title">PRODUCTION SECURITY NOTE</h3>
+                        <p>Untuk deployment production, API key sebaiknya TIDAK disimpan di frontend. Gunakan arsitektur backend proxy:</p>
+                        <pre class="arch-diagram">Frontend → Backend API Proxy → OpenRouter</pre>
+                        <p>API key harus berada di server/environment variable. Frontend-only security hanya bersifat deterrence, bukan perlindungan absolut. Jangan mengandalkan client-side protection untuk melindungi secret credentials.</p>
+                    </div>
                 </div>
             </section>
 
         </main>
     </div>
 
-    <!-- ===================== TOAST ===================== -->
+    <!-- ======================== TOAST ======================== -->
     <div id="toast-container" aria-live="assertive"></div>
 
-    <!-- ===================== RATE LIMIT MODAL ===================== -->
+    <!-- ======================== RATE LIMIT MODAL ======================== -->
     <div id="rate-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Rate limit warning">
         <div class="modal-box">
+            <div class="modal-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="32" height="32"><path d="M12 2l10 18H2z"/><path d="M12 9v4M12 15v1"/></svg>
+            </div>
             <div class="modal-title">RATE LIMIT EXCEEDED</div>
             <div class="modal-body">
                 <p>Anda telah mencapai batas maksimum request.</p>
-                <p>Tunggu <strong id="rate-countdown">60</strong> detik lagi.</p>
+                <p>Tunggu <strong id="rate-countdown">60</strong> detik.</p>
             </div>
-            <button id="rate-modal-close" class="action-btn" type="button">TUTUP</button>
+            <button id="rate-modal-close" class="primary-btn small" type="button">TUTUP</button>
+        </div>
+    </div>
+
+    <!-- ======================== CUSTOM REQUIREMENT MODAL ======================== -->
+    <div id="custom-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Add custom requirement">
+        <div class="modal-box wide">
+            <div class="modal-title">ADD CUSTOM REQUIREMENT</div>
+            <div class="modal-form">
+                <div class="input-wrapper">
+                    <label class="input-label" for="custom-title">Title</label>
+                    <input type="text" id="custom-title" placeholder="Requirement title">
+                </div>
+                <div class="input-wrapper">
+                    <label class="input-label" for="custom-value">Requirement / Value</label>
+                    <textarea id="custom-value" rows="3" placeholder="Describe the requirement..."></textarea>
+                </div>
+                <div class="input-wrapper">
+                    <label class="input-label" for="custom-priority">Priority</label>
+                    <select id="custom-priority">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button id="custom-cancel" class="action-btn" type="button">CANCEL</button>
+                <button id="custom-save" class="primary-btn small" type="button">ADD REQUIREMENT</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ======================== HISTORY VIEW MODAL ======================== -->
+    <div id="history-view-modal" class="modal-overlay hidden" role="dialog" aria-modal="true">
+        <div class="modal-box wide">
+            <div class="modal-title" id="hv-title"></div>
+            <div class="modal-subtitle" id="hv-time"></div>
+            <div class="hv-section">
+                <span class="input-label">BASE PROMPT</span>
+                <div class="hv-text" id="hv-base"></div>
+            </div>
+            <div class="hv-section">
+                <span class="input-label">FINAL PROMPT</span>
+                <textarea id="hv-final" readonly rows="12"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button id="hv-copy" class="action-btn" type="button">COPY</button>
+                <button id="hv-use" class="action-btn" type="button">USE AS BASE</button>
+                <button id="hv-close" class="action-btn danger" type="button">CLOSE</button>
+            </div>
         </div>
     </div>
 
