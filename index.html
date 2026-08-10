@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <title>VΛNTAGE FORGE — Dynamic AI Prompt Mutation Engine</title>
+    <meta name="description" content="VΛNTAGE FORGE: Transform simple prompts into complex, structured, production-ready AI prompts.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- ===================== SPLASH SCREEN ===================== -->
+    <div id="splash-screen" aria-label="Loading VΛNTAGE FORGE">
+        <video
+            id="splash-video"
+            autoplay
+            muted
+            playsinline
+            disablePictureInPicture
+            controlsList="nodownload nofullscreen noremoteplayback">
+            <source src="https://www.image2url.com/r2/default/videos/1786291089897-ebb8e0c8-c24c-4ee2-9a39-e68b832ac1b5.mp4" type="video/mp4">
+        </video>
+        <h1 id="vintage-logo" aria-hidden="true">VΛNTAGE</h1>
+    </div>
+
+    <!-- ===================== BACKGROUND VIDEO ===================== -->
+    <video
+        id="bg-video"
+        autoplay
+        muted
+        loop
+        playsinline
+        disablePictureInPicture
+        controlsList="nodownload nofullscreen noremoteplayback"
+        aria-hidden="true">
+        <source src="https://www.image2url.com/r2/default/videos/1786291905834-cace1863-06d7-42bf-9b0d-e9a75be94a2a.mp4" type="video/mp4">
+    </video>
+    <div id="bg-overlay" aria-hidden="true"></div>
+
+    <!-- ===================== SCANLINE OVERLAY ===================== -->
+    <div id="scanline-overlay" aria-hidden="true"></div>
+
+    <!-- ===================== MAIN APP ===================== -->
+    <div id="app" class="app-hidden">
+
+        <!-- SIDEBAR -->
+        <aside id="sidebar" role="navigation" aria-label="Main navigation">
+            <div class="sidebar-top">
+                <div class="sidebar-logo" aria-label="VΛNTAGE FORGE logo">
+                    <span class="logo-line1">VΛNTAGE</span>
+                    <span class="logo-line2">FORGE</span>
+                </div>
+                <nav class="sidebar-menu">
+                    <button class="menu-btn active" data-panel="dashboard" aria-label="Dashboard" aria-current="page">
+                        <span class="menu-icon">▣</span>
+                        <span class="menu-label">DASHBOARD</span>
+                    </button>
+                    <button class="menu-btn" data-panel="history" aria-label="History">
+                        <span class="menu-icon">◫</span>
+                        <span class="menu-label">HISTORY</span>
+                    </button>
+                    <button class="menu-btn" data-panel="settings" aria-label="Settings">
+                        <span class="menu-icon">⚙</span>
+                        <span class="menu-label">SETTINGS</span>
+                    </button>
+                </nav>
+            </div>
+            <div class="sidebar-footer">
+                <div class="credit-line">Made by : <span class="credit-name">VΛNTAGE</span></div>
+                <div class="credit-desc">Bertujuan untuk mengembangkan website dari vibe coder</div>
+            </div>
+        </aside>
+
+        <!-- MOBILE SIDEBAR TOGGLE -->
+        <button id="mobile-menu-toggle" aria-label="Toggle sidebar menu">
+            <span></span><span></span><span></span>
+        </button>
+        <div id="sidebar-backdrop" aria-hidden="true"></div>
+
+        <!-- MAIN CONTENT -->
+        <main id="main-content" role="main">
+
+            <!-- STATUS BAR -->
+            <div id="status-bar" aria-live="polite">
+                <span class="status-dot" id="status-dot"></span>
+                <span class="status-text" id="status-text">SYSTEM READY</span>
+            </div>
+
+            <!-- ======= PANEL: DASHBOARD ======= -->
+            <section id="panel-dashboard" class="panel active">
+
+                <!-- VIDEO CARD -->
+                <div class="video-card-wrapper">
+                    <div class="video-card" aria-label="VΛNTAGE FORGE intro video">
+                        <video
+                            id="card-video"
+                            autoplay
+                            muted
+                            loop
+                            playsinline
+                            disablePictureInPicture
+                            controlsList="nodownload nofullscreen noremoteplayback">
+                            <source src="https://www.image2url.com/r2/default/videos/1786291391783-8d738f79-929f-4622-831a-9735e72cc89b.mp4" type="video/mp4">
+                        </video>
+                    </div>
+                </div>
+
+                <!-- API KEY GATE -->
+                <div id="api-gate" class="section-block">
+                    <div class="section-label">OPENROUTER API KEY</div>
+                    <div class="section-sublabel">Masukkan API key OpenRouter untuk mengaktifkan engine</div>
+                    <div class="api-input-row">
+                        <div class="api-input-wrap">
+                            <input
+                                type="password"
+                                id="api-key-input"
+                                placeholder="sk-or-v1-..."
+                                autocomplete="off"
+                                spellcheck="false"
+                                aria-label="OpenRouter API Key">
+                            <button id="toggle-key-vis" class="icon-btn" aria-label="Show or hide API key" type="button">SHOW</button>
+                        </div>
+                        <button id="validate-btn" class="primary-btn" type="button">
+                            <span class="btn-text">VALIDATE &amp; UNLOCK</span>
+                            <span class="btn-spinner hidden" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                    <div id="api-gate-msg" class="gate-msg" aria-live="polite"></div>
+                </div>
+
+                <!-- MAIN FEATURE (hidden until unlocked) -->
+                <div id="main-feature" class="main-feature-hidden">
+
+                    <!-- PROMPT INPUT -->
+                    <div class="section-block" id="prompt-section">
+                        <div class="section-label">BASE PROMPT</div>
+                        <div class="section-sublabel">Masukkan prompt yang ingin diupgrade oleh VΛNTAGE FORGE</div>
+                        <textarea
+                            id="base-prompt"
+                            rows="6"
+                            placeholder="Contoh: Buatkan website portfolio untuk developer..."
+                            spellcheck="true"
+                            aria-label="Base prompt input"></textarea>
+                        <div class="prompt-meta">
+                            <span id="char-counter" class="char-counter">0 characters</span>
+                            <span id="char-warning" class="char-warning hidden">WARNING: Prompt sangat panjang. Processing mungkin membutuhkan waktu lebih lama.</span>
+                        </div>
+                        <button id="start-upgrade-btn" class="primary-btn upgrade-btn" type="button" disabled>
+                            <span class="btn-text">MULAI UPGRADE</span>
+                            <span class="btn-spinner hidden" aria-hidden="true"></span>
+                        </button>
+                    </div>
+
+                    <!-- AI ANALYSIS -->
+                    <div id="analysis-section" class="section-block hidden">
+                        <div class="section-label">AI ANALYSIS</div>
+                        <div id="analysis-content" class="analysis-box"></div>
+                        <div class="analysis-meta">
+                            <span class="meta-tag">Complexity: <strong id="complexity-tag">—</strong></span>
+                            <span class="meta-tag">Options: <strong id="options-count-tag">—</strong></span>
+                        </div>
+                    </div>
+
+                    <!-- DYNAMIC OPTIONS -->
+                    <div id="options-section" class="section-block hidden">
+                        <div class="section-label">DYNAMIC CONFIGURATION</div>
+                        <div class="section-sublabel">Konfigurasi opsi di bawah untuk menyesuaikan prompt akhir</div>
+                        <div id="options-pagination" class="options-pagination hidden">
+                            <button id="opt-prev" class="pagination-btn" type="button" aria-label="Previous page" disabled>◂ PREV</button>
+                            <span id="opt-page-info" class="page-info">Page 1 / 1</span>
+                            <button id="opt-next" class="pagination-btn" type="button" aria-label="Next page" disabled>NEXT ▸</button>
+                        </div>
+                        <div id="options-grid" class="options-grid"></div>
+                        <button id="generate-final-btn" class="primary-btn generate-btn" type="button">
+                            <span class="btn-text">GENERATE FINAL PROMPT</span>
+                            <span class="btn-spinner hidden" aria-hidden="true"></span>
+                        </button>
+                    </div>
+
+                    <!-- FINAL PROMPT -->
+                    <div id="final-section" class="section-block hidden">
+                        <div class="section-label">SUPER PROMPT</div>
+                        <textarea id="final-prompt" readonly rows="16" aria-label="Generated final prompt"></textarea>
+                        <div class="final-actions">
+                            <button id="copy-btn" class="action-btn" type="button" aria-label="Copy to clipboard">COPY TO CLIPBOARD</button>
+                            <button id="regenerate-btn" class="action-btn" type="button" aria-label="Regenerate final prompt">REGENERATE</button>
+                            <button id="save-history-btn" class="action-btn" type="button" aria-label="Save to history">SAVE TO HISTORY</button>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+            <!-- ======= PANEL: HISTORY ======= -->
+            <section id="panel-history" class="panel">
+                <div class="section-label">PROMPT HISTORY</div>
+                <div class="section-sublabel">Riwayat prompt yang telah di-generate</div>
+                <div id="history-list" class="history-list">
+                    <div class="history-empty">Belum ada history tersimpan.</div>
+                </div>
+            </section>
+
+            <!-- ======= PANEL: SETTINGS ======= -->
+            <section id="panel-settings" class="panel">
+                <div class="section-label">SETTINGS</div>
+
+                <div class="settings-group">
+                    <div class="settings-item">
+                        <span class="settings-key">API Key Status</span>
+                        <span class="settings-value" id="settings-api-status">NOT SET</span>
+                    </div>
+                    <div class="settings-item">
+                        <span class="settings-key">Application Version</span>
+                        <span class="settings-value">v1.0.0</span>
+                    </div>
+                    <div class="settings-item">
+                        <span class="settings-key">Security Status</span>
+                        <span class="settings-value" id="settings-security-status">ACTIVE — Frontend deterrence enabled</span>
+                    </div>
+                </div>
+
+                <div class="settings-actions">
+                    <button id="settings-clear-key" class="action-btn danger-btn" type="button">CLEAR API KEY</button>
+                    <button id="settings-clear-history" class="action-btn danger-btn" type="button">CLEAR ALL HISTORY</button>
+                </div>
+
+                <div class="settings-note">
+                    <div class="section-sublabel">PRODUCTION SECURITY NOTE</div>
+                    <p>Untuk deployment production, API key sebaiknya TIDAK disimpan di frontend. Gunakan arsitektur backend proxy:</p>
+                    <pre class="settings-arch">Frontend → Backend API Proxy → OpenRouter</pre>
+                    <p>API key harus berada di server/environment variable. Frontend-only security hanya bersifat deterrence, bukan perlindungan absolut.</p>
+                </div>
+            </section>
+
+        </main>
+    </div>
+
+    <!-- ===================== TOAST ===================== -->
+    <div id="toast-container" aria-live="assertive"></div>
+
+    <!-- ===================== RATE LIMIT MODAL ===================== -->
+    <div id="rate-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Rate limit warning">
+        <div class="modal-box">
+            <div class="modal-title">RATE LIMIT EXCEEDED</div>
+            <div class="modal-body">
+                <p>Anda telah mencapai batas maksimum request.</p>
+                <p>Tunggu <strong id="rate-countdown">60</strong> detik lagi.</p>
+            </div>
+            <button id="rate-modal-close" class="action-btn" type="button">TUTUP</button>
+        </div>
+    </div>
+
+    <script type="module" src="app.js"></script>
+</body>
+</html>
