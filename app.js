@@ -1,18 +1,12 @@
 /**
- * VΛNTAGE FORGE — Main Application Module
- * 
+ * VΛNTAGE FORGE — Main Application
  * Dynamic AI Prompt Mutation Engine
- * 
- * Architecture Note:
- * This is a frontend-only application for demonstration.
- * For production deployment:
- *   - API key should be stored server-side
- *   - Use a backend proxy: Frontend → Backend → OpenRouter
- *   - Implement server-side rate limiting, auth, CSP, HTTPS
- *   - Never expose API keys in client-side code
+ *
+ * Architecture: Frontend-only demo.
+ * Production should use: Frontend → Backend Proxy → OpenRouter
  */
 
-import { validateApiKey, generateOptions, generateFinalPrompt } from "./api.js";
+import { validateApiKey, generateOptions, generateFinalPrompt, improvePrompt } from "./api.js";
 import { initSecurity, RateLimiter } from "./security.js";
 
 // ================================================================
@@ -22,72 +16,135 @@ const state = {
     unlocked: false,
     apiKey: null,
     basePrompt: "",
+    outputMode: "balanced",
+    persona: "principal_engineer",
     analysis: null,
-    complexity: null,
-    options: [],
+    phases: [],
+    currentPhase: 0,
     selections: {},
+    customRequirements: [],
+    attachedFiles: [],
+    fileContexts: [],
     finalPrompt: "",
+    quality: null,
+    promptVersions: [],
+    currentVersion: -1,
     history: [],
     currentPanel: "dashboard",
-    optionPage: 0,
-    optionsPerPage: 20,
+    settings: {
+        bgVideo: true,
+        particles: true,
+        cursorGlow: true,
+        reducedMotion: false,
+    },
 };
 
-// Rate limiter: max 3 requests per 60 seconds (in-memory, client-side deterrent only)
 const rateLimiter = new RateLimiter(3, 60000);
 
 // ================================================================
-// DOM REFERENCES
+// DOM CACHE
 // ================================================================
-const dom = {};
-
+const $ = {};
 function cacheDom() {
-    dom.splashScreen = document.getElementById("splash-screen");
-    dom.splashVideo = document.getElementById("splash-video");
-    dom.vintageLogo = document.getElementById("vintage-logo");
-    dom.bgVideo = document.getElementById("bg-video");
-    dom.app = document.getElementById("app");
-    dom.sidebar = document.getElementById("sidebar");
-    dom.mobileMenuToggle = document.getElementById("mobile-menu-toggle");
-    dom.sidebarBackdrop = document.getElementById("sidebar-backdrop");
-    dom.menuBtns = document.querySelectorAll(".menu-btn");
-    dom.panels = document.querySelectorAll(".panel");
-    dom.statusDot = document.getElementById("status-dot");
-    dom.statusText = document.getElementById("status-text");
-    dom.apiKeyInput = document.getElementById("api-key-input");
-    dom.toggleKeyVis = document.getElementById("toggle-key-vis");
-    dom.validateBtn = document.getElementById("validate-btn");
-    dom.apiGateMsg = document.getElementById("api-gate-msg");
-    dom.mainFeature = document.getElementById("main-feature");
-    dom.basePrompt = document.getElementById("base-prompt");
-    dom.charCounter = document.getElementById("char-counter");
-    dom.charWarning = document.getElementById("char-warning");
-    dom.startUpgradeBtn = document.getElementById("start-upgrade-btn");
-    dom.analysisSection = document.getElementById("analysis-section");
-    dom.analysisContent = document.getElementById("analysis-content");
-    dom.complexityTag = document.getElementById("complexity-tag");
-    dom.optionsCountTag = document.getElementById("options-count-tag");
-    dom.optionsSection = document.getElementById("options-section");
-    dom.optionsPagination = document.getElementById("options-pagination");
-    dom.optPrev = document.getElementById("opt-prev");
-    dom.optNext = document.getElementById("opt-next");
-    dom.optPageInfo = document.getElementById("opt-page-info");
-    dom.optionsGrid = document.getElementById("options-grid");
-    dom.generateFinalBtn = document.getElementById("generate-final-btn");
-    dom.finalSection = document.getElementById("final-section");
-    dom.finalPrompt = document.getElementById("final-prompt");
-    dom.copyBtn = document.getElementById("copy-btn");
-    dom.regenerateBtn = document.getElementById("regenerate-btn");
-    dom.saveHistoryBtn = document.getElementById("save-history-btn");
-    dom.historyList = document.getElementById("history-list");
-    dom.settingsApiStatus = document.getElementById("settings-api-status");
-    dom.settingsClearKey = document.getElementById("settings-clear-key");
-    dom.settingsClearHistory = document.getElementById("settings-clear-history");
-    dom.toastContainer = document.getElementById("toast-container");
-    dom.rateModal = document.getElementById("rate-modal");
-    dom.rateCountdown = document.getElementById("rate-countdown");
-    dom.rateModalClose = document.getElementById("rate-modal-close");
-    dom.cardVideo = document.getElementById("card-video");
+    $.splash = document.getElementById("splash-screen");
+    $.splashVideo = document.getElementById("splash-video");
+    $.splashLogoContainer = document.getElementById("splash-logo-container");
+    $.splashLogoImg = document.getElementById("splash-logo-img");
+    $.splashLogoFallback = document.getElementById("splash-logo-fallback");
+    $.bgVideo = document.getElementById("bg-video");
+    $.particleCanvas = document.getElementById("particle-canvas");
+    $.cursorGlow = document.getElementById("cursor-glow");
+    $.app = document.getElementById("app");
+    $.sidebar = document.getElementById("sidebar");
+    $.mobileToggle = document.getElementById("mobile-menu-toggle");
+    $.sidebarBackdrop = document.getElementById("sidebar-backdrop");
+    $.menuBtns = document.querySelectorAll(".menu-btn");
+    $.panels = document.querySelectorAll(".panel");
+    $.statusDot = document.getElementById("status-dot");
+    $.statusText = document.getElementById("status-text");
+    $.apiKeyInput = document.getElementById("api-key-input");
+    $.toggleKeyVis = document.getElementById("toggle-key-vis");
+    $.rememberToggle = document.getElementById("remember-key-toggle");
+    $.validateBtn = document.getElementById("validate-btn");
+    $.apiGateMsg = document.getElementById("api-gate-msg");
+    $.mainFeature = document.getElementById("main-feature");
+    $.outputModeSelector = document.getElementById("output-mode-selector");
+    $.personaSelect = document.getElementById("persona-select");
+    $.basePrompt = document.getElementById("base-prompt");
+    $.charCounter = document.getElementById("char-counter");
+    $.charWarning = document.getElementById("char-warning");
+    $.startUpgradeBtn = document.getElementById("start-upgrade-btn");
+    $.fileDropZone = document.getElementById("file-drop-zone");
+    $.fileInput = document.getElementById("file-input");
+    $.fileList = document.getElementById("file-list");
+    $.fileWarning = document.getElementById("file-warning");
+    $.processingSection = document.getElementById("processing-section");
+    $.processingStatus = document.getElementById("processing-status");
+    $.analysisSection = document.getElementById("analysis-section");
+    $.analysisIntent = document.getElementById("analysis-intent");
+    $.analysisDomain = document.getElementById("analysis-domain");
+    $.analysisComplexity = document.getElementById("analysis-complexity");
+    $.analysisText = document.getElementById("analysis-text");
+    $.analysisMissing = document.getElementById("analysis-missing");
+    $.analysisRecs = document.getElementById("analysis-recommendations");
+    $.contextSection = document.getElementById("context-section");
+    $.contextItems = document.getElementById("context-items");
+    $.configSection = document.getElementById("config-section");
+    $.configSubtitle = document.getElementById("config-subtitle");
+    $.phaseNav = document.getElementById("phase-nav");
+    $.configProgressFill = document.getElementById("config-progress-fill");
+    $.configProgressText = document.getElementById("config-progress-text");
+    $.optionsGrid = document.getElementById("options-grid");
+    $.phasePrev = document.getElementById("phase-prev");
+    $.phaseNext = document.getElementById("phase-next");
+    $.autoConfigBtn = document.getElementById("auto-configure-btn");
+    $.addCustomBtn = document.getElementById("add-custom-btn");
+    $.generateFinalBtn = document.getElementById("generate-final-btn");
+    $.finalSection = document.getElementById("final-section");
+    $.qualitySection = document.getElementById("quality-section");
+    $.qualityBarFill = document.getElementById("quality-bar-fill");
+    $.qualityScore = document.getElementById("quality-score");
+    $.qualityBreakdown = document.getElementById("quality-breakdown");
+    $.qualityWarnings = document.getElementById("quality-warnings");
+    $.finalPrompt = document.getElementById("final-prompt");
+    $.copyBtn = document.getElementById("copy-btn");
+    $.editModeBtn = document.getElementById("edit-mode-btn");
+    $.improveBtn = document.getElementById("improve-btn");
+    $.regenerateBtn = document.getElementById("regenerate-btn");
+    $.saveHistoryBtn = document.getElementById("save-history-btn");
+    $.exportTxtBtn = document.getElementById("export-txt-btn");
+    $.exportJsonBtn = document.getElementById("export-json-btn");
+    $.versionHistory = document.getElementById("version-history");
+    $.versionList = document.getElementById("version-list");
+    $.diffSection = document.getElementById("diff-section");
+    $.diffOutput = document.getElementById("diff-output");
+    $.historyList = document.getElementById("history-list");
+    $.settingsApiStatus = document.getElementById("settings-api-status");
+    $.settingsClearKey = document.getElementById("settings-clear-key");
+    $.settingsClearHistory = document.getElementById("settings-clear-history");
+    $.settingsResetApp = document.getElementById("settings-reset-app");
+    $.settingBgVideo = document.getElementById("setting-bg-video");
+    $.settingParticles = document.getElementById("setting-particles");
+    $.settingCursorGlow = document.getElementById("setting-cursor-glow");
+    $.settingReducedMotion = document.getElementById("setting-reduced-motion");
+    $.toastContainer = document.getElementById("toast-container");
+    $.rateModal = document.getElementById("rate-modal");
+    $.rateCountdown = document.getElementById("rate-countdown");
+    $.rateModalClose = document.getElementById("rate-modal-close");
+    $.customModal = document.getElementById("custom-modal");
+    $.customTitle = document.getElementById("custom-title");
+    $.customValue = document.getElementById("custom-value");
+    $.customPriority = document.getElementById("custom-priority");
+    $.customCancel = document.getElementById("custom-cancel");
+    $.customSave = document.getElementById("custom-save");
+    $.hvModal = document.getElementById("history-view-modal");
+    $.hvTitle = document.getElementById("hv-title");
+    $.hvTime = document.getElementById("hv-time");
+    $.hvBase = document.getElementById("hv-base");
+    $.hvFinal = document.getElementById("hv-final");
+    $.hvCopy = document.getElementById("hv-copy");
+    $.hvUse = document.getElementById("hv-use");
+    $.hvClose = document.getElementById("hv-close");
 }
 
 // ================================================================
@@ -97,1138 +154,326 @@ document.addEventListener("DOMContentLoaded", () => {
     cacheDom();
     initSecurity();
     loadHistory();
+    loadSettings();
     initSplash();
-    bindEvents();
+    initParticles();
+    initCursorGlow();
+    bindAll();
 });
 
 // ================================================================
-// SPLASH SCREEN
+// SPLASH
 // ================================================================
 function initSplash() {
-    const video = dom.splashVideo;
-    const logo = dom.vintageLogo;
+    const v = $.splashVideo;
+    v.addEventListener("contextmenu", e => e.preventDefault());
 
-    // Prevent context menu on splash video
-    video.addEventListener("contextmenu", (e) => e.preventDefault());
+    v.addEventListener("ended", () => {
+        v.style.display = "none";
+        $.splashLogoContainer.style.display = "flex";
 
-    // Listen for video end - this is the ONLY trigger, no timer fallback
-    video.addEventListener("ended", () => {
-        // Hide video
-        video.style.display = "none";
+        const target = $.splashLogoImg.complete && $.splashLogoImg.naturalWidth > 0
+            ? $.splashLogoImg : $.splashLogoFallback;
 
-        // Show logo animation
-        logo.classList.add("animate-in");
+        if (target === $.splashLogoFallback) {
+            $.splashLogoImg.style.display = "none";
+            $.splashLogoFallback.style.display = "block";
+        }
 
-        // After slide-up animation completes (1.5s)
+        target.classList.add("splash-anim-in");
+
         setTimeout(() => {
-            logo.classList.remove("animate-in");
-            logo.classList.add("animate-hold");
-
-            // Hold for 2 seconds
+            target.classList.remove("splash-anim-in");
+            target.classList.add("splash-anim-hold");
             setTimeout(() => {
-                logo.classList.remove("animate-hold");
-                logo.classList.add("animate-out");
-
-                // After fade-out (1s)
+                target.classList.remove("splash-anim-hold");
+                target.classList.add("splash-anim-out");
                 setTimeout(() => {
-                    dom.splashScreen.remove();
+                    $.splash.remove();
                     document.body.classList.add("loaded");
-                    dom.app.classList.remove("app-hidden");
-                    dom.app.classList.add("app-visible");
+                    $.app.classList.remove("app-hidden");
+                    $.app.classList.add("app-visible");
+                    animateEntrance();
                     checkStoredApiKey();
                 }, 1000);
             }, 2000);
         }, 1500);
     });
 
-    // Fallback: if video fails to load entirely, still proceed after a long delay
-    video.addEventListener("error", () => {
-        // Video failed to load - skip splash gracefully
+    v.addEventListener("error", () => {
         setTimeout(() => {
-            if (dom.splashScreen && dom.splashScreen.parentNode) {
-                dom.splashScreen.remove();
+            if ($.splash?.parentNode) {
+                $.splash.remove();
                 document.body.classList.add("loaded");
-                dom.app.classList.remove("app-hidden");
-                dom.app.classList.add("app-visible");
+                $.app.classList.remove("app-hidden");
+                $.app.classList.add("app-visible");
+                animateEntrance();
                 checkStoredApiKey();
             }
-        }, 2000);
+        }, 1500);
+    });
+}
+
+function animateEntrance() {
+    const targets = document.querySelectorAll(".anim-target");
+    targets.forEach((el, i) => {
+        const delay = parseInt(el.dataset.animDelay || "0") + i * 60;
+        setTimeout(() => el.classList.add("anim-visible"), delay);
     });
 }
 
 // ================================================================
-// EVENT BINDINGS
+// PARTICLES
 // ================================================================
-function bindEvents() {
-    // Sidebar menu
-    dom.menuBtns.forEach((btn) => {
-        btn.addEventListener("click", () => {
-            switchPanel(btn.dataset.panel);
-            closeMobileSidebar();
-        });
+let particleCtx, particles = [], particleRAF;
+function initParticles() {
+    const canvas = $.particleCanvas;
+    particleCtx = canvas.getContext("2d");
+    resizeCanvas();
+    window.addEventListener("resize", resizeCanvas);
+    for (let i = 0; i < 40; i++) particles.push(createParticle(canvas));
+    animateParticles();
+    document.addEventListener("visibilitychange", () => {
+        if (document.hidden) cancelAnimationFrame(particleRAF);
+        else animateParticles();
     });
+}
 
-    // Mobile menu
-    dom.mobileMenuToggle.addEventListener("click", toggleMobileSidebar);
-    dom.sidebarBackdrop.addEventListener("click", closeMobileSidebar);
+function resizeCanvas() {
+    $.particleCanvas.width = window.innerWidth;
+    $.particleCanvas.height = window.innerHeight;
+}
 
-    // API key visibility toggle
-    dom.toggleKeyVis.addEventListener("click", () => {
-        const input = dom.apiKeyInput;
-        if (input.type === "password") {
-            input.type = "text";
-            dom.toggleKeyVis.textContent = "HIDE";
-        } else {
-            input.type = "password";
-            dom.toggleKeyVis.textContent = "SHOW";
+function createParticle(canvas) {
+    return {
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.3,
+        vy: (Math.random() - 0.5) * 0.3,
+        r: Math.random() * 1.5 + 0.5,
+        o: Math.random() * 0.3 + 0.05,
+    };
+}
+
+function animateParticles() {
+    if (!state.settings.particles || state.settings.reducedMotion) {
+        particleCtx.clearRect(0, 0, $.particleCanvas.width, $.particleCanvas.height);
+        return;
+    }
+    const ctx = particleCtx, w = $.particleCanvas.width, h = $.particleCanvas.height;
+    ctx.clearRect(0, 0, w, h);
+    for (const p of particles) {
+        p.x += p.vx; p.y += p.vy;
+        if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+        if (p.y < 0) p.y = h; if (p.y > h) p.y = 0;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,107,0,${p.o})`;
+        ctx.fill();
+    }
+    particleRAF = requestAnimationFrame(animateParticles);
+}
+
+// ================================================================
+// CURSOR GLOW
+// ================================================================
+function initCursorGlow() {
+    if (window.matchMedia("(pointer:coarse)").matches) return;
+    document.addEventListener("mousemove", (e) => {
+        if (!state.settings.cursorGlow || state.settings.reducedMotion) {
+            $.cursorGlow.classList.remove("active");
+            return;
         }
+        $.cursorGlow.style.left = e.clientX + "px";
+        $.cursorGlow.style.top = e.clientY + "px";
+        $.cursorGlow.classList.add("active");
     });
+    document.addEventListener("mouseleave", () => $.cursorGlow.classList.remove("active"));
+}
 
-    // Validate API key
-    dom.validateBtn.addEventListener("click", handleValidateApiKey);
-    dom.apiKeyInput.addEventListener("keydown", (e) => {
-        if (e.key === "Enter") handleValidateApiKey();
+// ================================================================
+// BIND
+// ================================================================
+function bindAll() {
+    // Sidebar
+    $.menuBtns.forEach(b => b.addEventListener("click", () => { switchPanel(b.dataset.panel); closeMobile(); }));
+    $.mobileToggle.addEventListener("click", () => { $.sidebar.classList.toggle("sidebar-open"); $.sidebarBackdrop.classList.toggle("show"); });
+    $.sidebarBackdrop.addEventListener("click", closeMobile);
+
+    // API Key
+    $.toggleKeyVis.addEventListener("click", () => {
+        const isPass = $.apiKeyInput.type === "password";
+        $.apiKeyInput.type = isPass ? "text" : "password";
     });
+    $.validateBtn.addEventListener("click", handleValidate);
+    $.apiKeyInput.addEventListener("keydown", e => { if (e.key === "Enter") handleValidate(); });
 
-    // Base prompt input with debounce
-    let debounceTimer = null;
-    dom.basePrompt.addEventListener("input", () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
-            state.basePrompt = dom.basePrompt.value;
+    // Prompt
+    let debounce = null;
+    $.basePrompt.addEventListener("input", () => {
+        clearTimeout(debounce);
+        debounce = setTimeout(() => {
+            state.basePrompt = $.basePrompt.value;
             updateCharCounter();
             updateUpgradeBtn();
         }, 300);
     });
 
-    // Start Upgrade
-    dom.startUpgradeBtn.addEventListener("click", handleStartUpgrade);
-
-    // Generate Final
-    dom.generateFinalBtn.addEventListener("click", handleGenerateFinal);
-
-    // Copy
-    dom.copyBtn.addEventListener("click", handleCopy);
-
-    // Regenerate
-    dom.regenerateBtn.addEventListener("click", handleGenerateFinal);
-
-    // Save history
-    dom.saveHistoryBtn.addEventListener("click", handleSaveHistory);
-
-    // Pagination
-    dom.optPrev.addEventListener("click", () => {
-        if (state.optionPage > 0) {
-            state.optionPage--;
-            renderCurrentOptionsPage();
-        }
+    // Output mode
+    $.outputModeSelector.addEventListener("click", (e) => {
+        const btn = e.target.closest(".mode-btn");
+        if (!btn) return;
+        $.outputModeSelector.querySelectorAll(".mode-btn").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        state.outputMode = btn.dataset.mode;
     });
+    $.personaSelect.addEventListener("change", () => { state.persona = $.personaSelect.value; });
 
-    dom.optNext.addEventListener("click", () => {
-        const totalPages = Math.ceil(state.options.length / state.optionsPerPage);
-        if (state.optionPage < totalPages - 1) {
-            state.optionPage++;
-            renderCurrentOptionsPage();
-        }
-    });
+    // Files
+    $.fileDropZone.addEventListener("click", () => $.fileInput.click());
+    $.fileDropZone.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") $.fileInput.click(); });
+    $.fileInput.addEventListener("change", handleFileSelect);
+    $.fileDropZone.addEventListener("dragover", e => { e.preventDefault(); $.fileDropZone.classList.add("drag-over"); });
+    $.fileDropZone.addEventListener("dragleave", () => $.fileDropZone.classList.remove("drag-over"));
+    $.fileDropZone.addEventListener("drop", e => { e.preventDefault(); $.fileDropZone.classList.remove("drag-over"); handleFileDrop(e.dataTransfer.files); });
+
+    // Start upgrade
+    $.startUpgradeBtn.addEventListener("click", handleStartUpgrade);
+
+    // Phase nav
+    $.phasePrev.addEventListener("click", () => { if (state.currentPhase > 0) { state.currentPhase--; renderPhase(); } });
+    $.phaseNext.addEventListener("click", () => { if (state.currentPhase < state.phases.length - 1) { state.currentPhase++; renderPhase(); } });
+    $.autoConfigBtn.addEventListener("click", handleAutoConfig);
+    $.addCustomBtn.addEventListener("click", () => $.customModal.classList.remove("hidden"));
+    $.generateFinalBtn.addEventListener("click", handleGenerateFinal);
+
+    // Custom modal
+    $.customCancel.addEventListener("click", () => $.customModal.classList.add("hidden"));
+    $.customSave.addEventListener("click", handleSaveCustom);
+
+    // Final actions
+    $.copyBtn.addEventListener("click", handleCopy);
+    $.editModeBtn.addEventListener("click", handleEditMode);
+    $.improveBtn.addEventListener("click", handleImprove);
+    $.regenerateBtn.addEventListener("click", handleGenerateFinal);
+    $.saveHistoryBtn.addEventListener("click", handleSaveHistory);
+    $.exportTxtBtn.addEventListener("click", handleExportTxt);
+    $.exportJsonBtn.addEventListener("click", handleExportJson);
+
+    // Rate modal
+    $.rateModalClose.addEventListener("click", () => $.rateModal.classList.add("hidden"));
 
     // Settings
-    dom.settingsClearKey.addEventListener("click", handleClearApiKey);
-    dom.settingsClearHistory.addEventListener("click", handleClearHistory);
+    $.settingsClearKey.addEventListener("click", handleClearKey);
+    $.settingsClearHistory.addEventListener("click", handleClearHistory);
+    $.settingsResetApp.addEventListener("click", handleResetApp);
+    $.settingBgVideo.addEventListener("change", () => { state.settings.bgVideo = $.settingBgVideo.checked; applySettings(); saveSettings(); });
+    $.settingParticles.addEventListener("change", () => { state.settings.particles = $.settingParticles.checked; applySettings(); saveSettings(); });
+    $.settingCursorGlow.addEventListener("change", () => { state.settings.cursorGlow = $.settingCursorGlow.checked; applySettings(); saveSettings(); });
+    $.settingReducedMotion.addEventListener("change", () => { state.settings.reducedMotion = $.settingReducedMotion.checked; applySettings(); saveSettings(); });
 
-    // Rate modal close
-    dom.rateModalClose.addEventListener("click", () => {
-        dom.rateModal.classList.add("hidden");
-    });
+    // History view modal
+    $.hvCopy.addEventListener("click", () => copyText($.hvFinal.value));
+    $.hvClose.addEventListener("click", () => $.hvModal.classList.add("hidden"));
 
-    // Prevent video controls on all videos
-    document.querySelectorAll("video").forEach((v) => {
-        v.addEventListener("contextmenu", (e) => e.preventDefault());
-    });
+    // Videos
+    document.querySelectorAll("video").forEach(v => v.addEventListener("contextmenu", e => e.preventDefault()));
+}
+
+function closeMobile() { $.sidebar.classList.remove("sidebar-open"); $.sidebarBackdrop.classList.remove("show"); }
+
+// ================================================================
+// PANEL SWITCH
+// ================================================================
+function switchPanel(name) {
+    state.currentPanel = name;
+    $.menuBtns.forEach(b => { b.classList.toggle("active", b.dataset.panel === name); b.setAttribute("aria-current", b.dataset.panel === name ? "page" : "false"); });
+    $.panels.forEach(p => p.classList.toggle("active", p.dataset.panel === name));
+    if (name === "history") renderHistory();
+    if (name === "settings") updateSettings();
 }
 
 // ================================================================
-// PANEL SWITCHING
+// STATUS / TOAST
 // ================================================================
-function switchPanel(panelName) {
-    state.currentPanel = panelName;
+function setStatus(type, text) { $.statusDot.className = `status-dot s-${type}`; $.statusText.textContent = text; }
 
-    dom.menuBtns.forEach((btn) => {
-        btn.classList.toggle("active", btn.dataset.panel === panelName);
-        btn.setAttribute("aria-current", btn.dataset.panel === panelName ? "page" : "false");
-    });
-
-    dom.panels.forEach((panel) => {
-        panel.classList.toggle("active", panel.id === `panel-${panelName}`);
-    });
-
-    if (panelName === "history") {
-        renderHistory();
-    }
-
-    if (panelName === "settings") {
-        updateSettingsPanel();
-    }
+function toast(msg, type = "info", dur = 4000) {
+    const t = document.createElement("div");
+    t.className = `toast t-${type}`;
+    t.textContent = msg;
+    $.toastContainer.appendChild(t);
+    setTimeout(() => { t.classList.add("toast-out"); setTimeout(() => t.remove(), 300); }, dur);
 }
 
 // ================================================================
-// MOBILE SIDEBAR
+// BUTTON LOADING
 // ================================================================
-function toggleMobileSidebar() {
-    dom.sidebar.classList.toggle("sidebar-open");
-    dom.sidebarBackdrop.classList.toggle("show");
-}
-
-function closeMobileSidebar() {
-    dom.sidebar.classList.remove("sidebar-open");
-    dom.sidebarBackdrop.classList.remove("show");
-}
-
-// ================================================================
-// STATUS
-// ================================================================
-function setStatus(type, text) {
-    dom.statusDot.className = "status-dot status-" + type;
-    dom.statusText.textContent = text;
+function setBtnLoading(btn, loading) {
+    const text = btn.querySelector(".btn-text") || btn.querySelector(".btn-content");
+    const spin = btn.querySelector(".btn-spinner");
+    btn.disabled = loading;
+    if (text) text.style.opacity = loading ? "0.4" : "1";
+    if (spin) spin.classList.toggle("hidden", !loading);
 }
 
 // ================================================================
-// TOAST
-// ================================================================
-function showToast(message, type = "info", duration = 4000) {
-    const toast = document.createElement("div");
-    toast.className = `toast toast-${type}`;
-    toast.textContent = message;
-    dom.toastContainer.appendChild(toast);
-
-    setTimeout(() => {
-        toast.classList.add("toast-out");
-        setTimeout(() => {
-            if (toast.parentNode) toast.parentNode.removeChild(toast);
-        }, 300);
-    }, duration);
-}
-
-// ================================================================
-// API KEY HANDLING
+// API KEY
 // ================================================================
 function checkStoredApiKey() {
     try {
-        const stored = localStorage.getItem("vf_api_key");
-        if (stored && stored.length > 10) {
-            dom.apiKeyInput.value = stored;
-        }
-    } catch (_) {
-        // localStorage unavailable
-    }
+        const k = localStorage.getItem("vf_key");
+        if (k && k.length > 10) { $.apiKeyInput.value = k; $.rememberToggle.checked = true; }
+    } catch (_) {}
 }
 
-async function handleValidateApiKey() {
-    const key = dom.apiKeyInput.value.trim();
-    if (!key) {
-        showGateMsg("Masukkan API Key terlebih dahulu.", "error");
-        return;
-    }
-
-    setButtonLoading(dom.validateBtn, true);
-    showGateMsg("Memvalidasi API Key...", "");
-    setStatus("processing", "VALIDATING API KEY...");
-
+async function handleValidate() {
+    const key = $.apiKeyInput.value.trim();
+    if (!key) { showGateMsg("Masukkan API Key.", "error"); return; }
+    setBtnLoading($.validateBtn, true);
+    showGateMsg("Validating...", "");
+    setStatus("processing", "VALIDATING...");
     try {
         await validateApiKey(key);
-
         state.apiKey = key;
         state.unlocked = true;
-
-        // Store with explicit user action (clicking validate is the explicit action)
-        try {
-            localStorage.setItem("vf_api_key", key);
-        } catch (_) {
-            // localStorage may be unavailable
-        }
-
+        if ($.rememberToggle.checked) { try { localStorage.setItem("vf_key", key); } catch (_) {} }
+        else { try { localStorage.removeItem("vf_key"); } catch (_) {} }
         showGateMsg("API Key valid. Engine unlocked.", "success");
         setStatus("connected", "API CONNECTED");
-        showToast("API Key validated. VΛNTAGE FORGE unlocked.", "success");
-
-        // Show main feature
-        dom.mainFeature.classList.remove("main-feature-hidden");
-        dom.mainFeature.classList.add("main-feature-visible");
-
-        updateSettingsPanel();
-
+        toast("VΛNTAGE FORGE unlocked.", "success");
+        $.mainFeature.classList.remove("main-feature-hidden");
+        $.mainFeature.classList.add("main-feature-visible");
+        setTimeout(() => { $.mainFeature.querySelectorAll(".anim-target").forEach((el, i) => setTimeout(() => el.classList.add("anim-visible"), i * 80)); }, 100);
+        updateSettings();
     } catch (err) {
         showGateMsg(err.message, "error");
         setStatus("error", "VALIDATION FAILED");
-        showToast(err.message, "error");
-    } finally {
-        setButtonLoading(dom.validateBtn, false);
-    }
+        toast(err.message, "error");
+    } finally { setBtnLoading($.validateBtn, false); }
 }
 
-function showGateMsg(msg, type) {
-    dom.apiGateMsg.textContent = msg;
-    dom.apiGateMsg.className = "gate-msg" + (type ? ` ${type}` : "");
-}
+function showGateMsg(msg, type) { $.apiGateMsg.textContent = msg; $.apiGateMsg.className = "gate-msg" + (type ? ` ${type}` : ""); }
 
 // ================================================================
-// CHARACTER COUNTER
+// CHAR COUNTER
 // ================================================================
 function updateCharCounter() {
-    const len = state.basePrompt.length;
-    dom.charCounter.textContent = `${len} character${len !== 1 ? "s" : ""}`;
-
-    if (len > 10000) {
-        dom.charWarning.classList.remove("hidden");
-    } else {
-        dom.charWarning.classList.add("hidden");
-    }
+    const l = state.basePrompt.length;
+    $.charCounter.textContent = `${l} character${l !== 1 ? "s" : ""}`;
+    $.charWarning.classList.toggle("hidden", l <= 10000);
 }
 
-function updateUpgradeBtn() {
-    dom.startUpgradeBtn.disabled = state.basePrompt.trim().length === 0;
-}
+function updateUpgradeBtn() { $.startUpgradeBtn.disabled = state.basePrompt.trim().length === 0; }
 
 // ================================================================
-// BUTTON LOADING STATE
+// FILE HANDLING
 // ================================================================
-function setButtonLoading(btn, loading) {
-    const textEl = btn.querySelector(".btn-text");
-    const spinnerEl = btn.querySelector(".btn-spinner");
-    if (loading) {
-        btn.disabled = true;
-        if (textEl) textEl.style.opacity = "0.5";
-        if (spinnerEl) spinnerEl.classList.remove("hidden");
-    } else {
-        btn.disabled = false;
-        if (textEl) textEl.style.opacity = "1";
-        if (spinnerEl) spinnerEl.classList.add("hidden");
-    }
-}
+const ALLOWED_EXT = [".txt",".md",".json",".csv",".html",".css",".js",".ts",".py",".java",".php",".sql",".xml"];
 
-// ================================================================
-// RATE LIMIT CHECK
-// ================================================================
-function checkRateLimit() {
-    if (!rateLimiter.canProceed()) {
-        const wait = rateLimiter.getWaitTime();
-        showRateLimitModal(wait);
-        return false;
-    }
-    return true;
-}
+function handleFileSelect(e) { handleFileDrop(e.target.files); $.fileInput.value = ""; }
 
-function showRateLimitModal(seconds) {
-    dom.rateCountdown.textContent = seconds;
-    dom.rateModal.classList.remove("hidden");
-    setStatus("limited", "RATE LIMITED");
-
-    let remaining = seconds;
-    const interval = setInterval(() => {
-        remaining--;
-        dom.rateCountdown.textContent = remaining;
-        if (remaining <= 0) {
-            clearInterval(interval);
-            dom.rateModal.classList.add("hidden");
-            setStatus("connected", "API CONNECTED");
-        }
-    }, 1000);
-}
-
-// ================================================================
-// START UPGRADE — Generate Dynamic Options
-// ================================================================
-async function handleStartUpgrade() {
-    if (!state.unlocked || !state.apiKey) {
-        showToast("Validasi API Key terlebih dahulu.", "warning");
-        return;
-    }
-
-    const prompt = state.basePrompt.trim();
-    if (!prompt) {
-        showToast("Masukkan prompt terlebih dahulu.", "warning");
-        return;
-    }
-
-    if (!checkRateLimit()) return;
-
-    setButtonLoading(dom.startUpgradeBtn, true);
-    setStatus("processing", "ANALYZING PROMPT...");
-
-    // Hide previous results
-    dom.analysisSection.classList.add("hidden");
-    dom.optionsSection.classList.add("hidden");
-    dom.finalSection.classList.add("hidden");
-
-    try {
-        rateLimiter.record();
-        const result = await generateOptions(state.apiKey, prompt);
-
-        state.analysis = result.analysis;
-        state.complexity = result.complexity || "medium";
-        state.options = result.options || [];
-        state.selections = {};
-        state.optionPage = 0;
-
-        // Render analysis
-        dom.analysisContent.textContent = state.analysis;
-        dom.complexityTag.textContent = state.complexity.toUpperCase();
-        dom.optionsCountTag.textContent = state.options.length.toString();
-        dom.analysisSection.classList.remove("hidden");
-
-        // Render options
-        if (state.options.length > 0) {
-            initializeSelections();
-            renderCurrentOptionsPage();
-            dom.optionsSection.classList.remove("hidden");
-        }
-
-        setStatus("complete", "ANALYSIS COMPLETE");
-        showToast(`Analisis selesai. ${state.options.length} opsi dihasilkan.`, "success");
-
-    } catch (err) {
-        setStatus("error", "ANALYSIS FAILED");
-        showToast(err.message, "error");
-    } finally {
-        setButtonLoading(dom.startUpgradeBtn, false);
-    }
-}
-
-// ================================================================
-// INITIALIZE SELECTIONS WITH DEFAULTS
-// ================================================================
-function initializeSelections() {
-    state.selections = {};
-    for (const opt of state.options) {
-        const key = `opt_${opt.id}`;
-        switch (opt.type) {
-            case "multiple_choice":
-            case "dropdown":
-            case "code_style":
-                state.selections[key] = null;
-                break;
-            case "checkbox":
-            case "multi_select":
-                state.selections[key] = [];
-                break;
-            case "text_input":
-                state.selections[key] = "";
-                break;
-            case "number":
-                state.selections[key] = opt.default !== undefined && opt.default !== null ? opt.default : (opt.min !== undefined ? opt.min : 0);
-                break;
-            case "slider":
-                state.selections[key] = opt.default !== undefined && opt.default !== null ? opt.default : (opt.min !== undefined ? opt.min : 50);
-                break;
-            case "boolean":
-                state.selections[key] = opt.default !== undefined && opt.default !== null ? opt.default : false;
-                break;
-            case "color":
-                state.selections[key] = opt.default || "#ff6b00";
-                break;
-            default:
-                state.selections[key] = null;
-        }
-    }
-}
-
-// ================================================================
-// OPTIONS RENDERING WITH PAGINATION
-// ================================================================
-function renderCurrentOptionsPage() {
-    const total = state.options.length;
-    const perPage = state.optionsPerPage;
-    const totalPages = Math.ceil(total / perPage);
-    const page = state.optionPage;
-
-    // Show/hide pagination
-    if (total > perPage) {
-        dom.optionsPagination.classList.remove("hidden");
-        dom.optPrev.disabled = page === 0;
-        dom.optNext.disabled = page >= totalPages - 1;
-        dom.optPageInfo.textContent = `Page ${page + 1} / ${totalPages}`;
-    } else {
-        dom.optionsPagination.classList.add("hidden");
-    }
-
-    const start = page * perPage;
-    const end = Math.min(start + perPage, total);
-    const pageOptions = state.options.slice(start, end);
-
-    // Build DOM with fragment
-    const fragment = document.createDocumentFragment();
-
-    for (const opt of pageOptions) {
-        const card = createOptionCard(opt);
-        fragment.appendChild(card);
-    }
-
-    dom.optionsGrid.innerHTML = "";
-    dom.optionsGrid.appendChild(fragment);
-}
-
-function createOptionCard(opt) {
-    const card = document.createElement("div");
-    card.className = "option-card";
-    card.dataset.optionId = opt.id;
-
-    const header = document.createElement("div");
-    header.className = "option-header";
-
-    const num = document.createElement("span");
-    num.className = "option-number";
-    num.textContent = `#${opt.id}`;
-
-    const question = document.createElement("span");
-    question.className = "option-question";
-    question.textContent = opt.question;
-
-    header.appendChild(num);
-    header.appendChild(question);
-    card.appendChild(header);
-
-    const body = document.createElement("div");
-    body.className = "option-body";
-
-    const key = `opt_${opt.id}`;
-
-    switch (opt.type) {
-        case "multiple_choice":
-        case "code_style":
-            body.appendChild(createRadioGroup(opt, key));
-            break;
-        case "checkbox":
-        case "multi_select":
-            body.appendChild(createCheckboxGroup(opt, key));
-            break;
-        case "dropdown":
-            body.appendChild(createDropdown(opt, key));
-            break;
-        case "text_input":
-            body.appendChild(createTextInput(opt, key));
-            break;
-        case "number":
-            body.appendChild(createNumberInput(opt, key));
-            break;
-        case "slider":
-            body.appendChild(createSlider(opt, key));
-            break;
-        case "boolean":
-            body.appendChild(createBooleanToggle(opt, key));
-            break;
-        case "color":
-            body.appendChild(createColorPicker(opt, key));
-            break;
-        default:
-            body.appendChild(createTextInput(opt, key));
-    }
-
-    card.appendChild(body);
-    return card;
-}
-
-function createRadioGroup(opt, key) {
-    const wrap = document.createElement("div");
-    wrap.className = "option-choices";
-
-    const choices = opt.choices || [];
-    const name = `radio_${opt.id}`;
-
-    for (const choice of choices) {
-        const label = document.createElement("label");
-        label.className = "option-choice";
-
-        const input = document.createElement("input");
-        input.type = "radio";
-        input.name = name;
-        input.value = choice;
-        if (state.selections[key] === choice) input.checked = true;
-
-        input.addEventListener("change", () => {
-            state.selections[key] = choice;
-        });
-
-        const text = document.createTextNode(choice);
-        label.appendChild(input);
-        label.appendChild(text);
-        wrap.appendChild(label);
-    }
-
-    return wrap;
-}
-
-function createCheckboxGroup(opt, key) {
-    const wrap = document.createElement("div");
-    wrap.className = "option-choices multi-select-wrap";
-
-    const choices = opt.choices || [];
-
-    for (const choice of choices) {
-        const label = document.createElement("label");
-        label.className = "option-choice";
-
-        const input = document.createElement("input");
-        input.type = "checkbox";
-        input.value = choice;
-
-        const currentArr = state.selections[key];
-        if (Array.isArray(currentArr) && currentArr.includes(choice)) {
-            input.checked = true;
-        }
-
-        input.addEventListener("change", () => {
-            if (!Array.isArray(state.selections[key])) {
-                state.selections[key] = [];
-            }
-            if (input.checked) {
-                if (!state.selections[key].includes(choice)) {
-                    state.selections[key].push(choice);
-                }
-            } else {
-                state.selections[key] = state.selections[key].filter(c => c !== choice);
-            }
-        });
-
-        const text = document.createTextNode(choice);
-        label.appendChild(input);
-        label.appendChild(text);
-        wrap.appendChild(label);
-    }
-
-    return wrap;
-}
-
-function createDropdown(opt, key) {
-    const select = document.createElement("select");
-    select.setAttribute("aria-label", opt.question);
-
-    const emptyOpt = document.createElement("option");
-    emptyOpt.value = "";
-    emptyOpt.textContent = "— Pilih —";
-    select.appendChild(emptyOpt);
-
-    const choices = opt.choices || [];
-    for (const choice of choices) {
-        const option = document.createElement("option");
-        option.value = choice;
-        option.textContent = choice;
-        if (state.selections[key] === choice) option.selected = true;
-        select.appendChild(option);
-    }
-
-    select.addEventListener("change", () => {
-        state.selections[key] = select.value || null;
-    });
-
-    return select;
-}
-
-function createTextInput(opt, key) {
-    const input = document.createElement("input");
-    input.type = "text";
-    input.placeholder = opt.placeholder || "Masukkan teks...";
-    input.value = state.selections[key] || "";
-    input.setAttribute("aria-label", opt.question);
-
-    input.addEventListener("input", () => {
-        state.selections[key] = input.value;
-    });
-
-    return input;
-}
-
-function createNumberInput(opt, key) {
-    const input = document.createElement("input");
-    input.type = "number";
-    if (opt.min !== undefined) input.min = opt.min;
-    if (opt.max !== undefined) input.max = opt.max;
-    input.value = state.selections[key] !== undefined && state.selections[key] !== null ? state.selections[key] : (opt.default || 0);
-    input.setAttribute("aria-label", opt.question);
-
-    input.addEventListener("input", () => {
-        const val = parseFloat(input.value);
-        state.selections[key] = isNaN(val) ? 0 : val;
-    });
-
-    return input;
-}
-
-function createSlider(opt, key) {
-    const wrap = document.createElement("div");
-    wrap.className = "option-slider-wrap";
-
-    const input = document.createElement("input");
-    input.type = "range";
-    input.min = opt.min !== undefined ? opt.min : 0;
-    input.max = opt.max !== undefined ? opt.max : 100;
-    input.step = opt.step !== undefined ? opt.step : 1;
-    input.value = state.selections[key] !== undefined && state.selections[key] !== null ? state.selections[key] : (opt.default || 50);
-    input.setAttribute("aria-label", opt.question);
-
-    const valueLabel = document.createElement("span");
-    valueLabel.className = "slider-value";
-    valueLabel.textContent = input.value;
-
-    input.addEventListener("input", () => {
-        state.selections[key] = parseFloat(input.value);
-        valueLabel.textContent = input.value;
-    });
-
-    wrap.appendChild(input);
-    wrap.appendChild(valueLabel);
-    return wrap;
-}
-
-function createBooleanToggle(opt, key) {
-    const wrap = document.createElement("div");
-    wrap.className = "boolean-toggle";
-
-    const yesBtn = document.createElement("button");
-    yesBtn.type = "button";
-    yesBtn.className = "bool-btn" + (state.selections[key] === true ? " selected" : "");
-    yesBtn.textContent = "YES";
-    yesBtn.setAttribute("aria-label", `${opt.question} - Yes`);
-
-    const noBtn = document.createElement("button");
-    noBtn.type = "button";
-    noBtn.className = "bool-btn" + (state.selections[key] === false ? " selected" : "");
-    noBtn.textContent = "NO";
-    noBtn.setAttribute("aria-label", `${opt.question} - No`);
-
-    yesBtn.addEventListener("click", () => {
-        state.selections[key] = true;
-        yesBtn.classList.add("selected");
-        noBtn.classList.remove("selected");
-    });
-
-    noBtn.addEventListener("click", () => {
-        state.selections[key] = false;
-        noBtn.classList.add("selected");
-        yesBtn.classList.remove("selected");
-    });
-
-    wrap.appendChild(yesBtn);
-    wrap.appendChild(noBtn);
-    return wrap;
-}
-
-function createColorPicker(opt, key) {
-    const input = document.createElement("input");
-    input.type = "color";
-    input.value = state.selections[key] || opt.default || "#ff6b00";
-    input.setAttribute("aria-label", opt.question);
-
-    input.addEventListener("input", () => {
-        state.selections[key] = input.value;
-    });
-
-    return input;
-}
-
-// ================================================================
-// GENERATE FINAL PROMPT
-// ================================================================
-async function handleGenerateFinal() {
-    if (!state.unlocked || !state.apiKey) {
-        showToast("Validasi API Key terlebih dahulu.", "warning");
-        return;
-    }
-
-    if (!state.analysis || state.options.length === 0) {
-        showToast("Jalankan analisis terlebih dahulu.", "warning");
-        return;
-    }
-
-    if (!checkRateLimit()) return;
-
-    setButtonLoading(dom.generateFinalBtn, true);
-    setStatus("processing", "GENERATING FINAL PROMPT...");
-    dom.finalSection.classList.add("hidden");
-
-    try {
-        rateLimiter.record();
-
-        // Build human-readable selections
-        const readableSelections = buildReadableSelections();
-
-        const finalText = await generateFinalPrompt(
-            state.apiKey,
-            state.basePrompt,
-            state.analysis,
-            readableSelections
-        );
-
-        state.finalPrompt = finalText;
-        dom.finalPrompt.value = finalText;
-        dom.finalSection.classList.remove("hidden");
-
-        setStatus("complete", "GENERATION COMPLETE");
-        showToast("Super Prompt berhasil di-generate.", "success");
-
-    } catch (err) {
-        setStatus("error", "GENERATION FAILED");
-        showToast(err.message, "error");
-    } finally {
-        setButtonLoading(dom.generateFinalBtn, false);
-    }
-}
-
-function buildReadableSelections() {
-    const readable = {};
-
-    for (const opt of state.options) {
-        const key = `opt_${opt.id}`;
-        const val = state.selections[key];
-
-        if (val === null || val === undefined || val === "" || (Array.isArray(val) && val.length === 0)) {
-            continue;
-        }
-
-        readable[opt.question] = val;
-    }
-
-    return readable;
-}
-
-// ================================================================
-// COPY TO CLIPBOARD
-// ================================================================
-async function handleCopy() {
-    const text = dom.finalPrompt.value;
-    if (!text) {
-        showToast("Tidak ada prompt untuk disalin.", "warning");
-        return;
-    }
-
-    try {
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-            await navigator.clipboard.writeText(text);
-        } else {
-            // Fallback
-            const textarea = document.createElement("textarea");
-            textarea.value = text;
-            textarea.style.position = "fixed";
-            textarea.style.left = "-9999px";
-            textarea.style.opacity = "0";
-            document.body.appendChild(textarea);
-            textarea.select();
-            document.execCommand("copy");
-            document.body.removeChild(textarea);
-        }
-        showToast("Prompt disalin ke clipboard.", "success");
-    } catch (err) {
-        showToast("Gagal menyalin. Salin secara manual.", "error");
-    }
-}
-
-// ================================================================
-// HISTORY
-// ================================================================
-function loadHistory() {
-    try {
-        const stored = localStorage.getItem("vf_history");
-        if (stored) {
-            state.history = JSON.parse(stored);
-            if (!Array.isArray(state.history)) state.history = [];
-        }
-    } catch (_) {
-        state.history = [];
-    }
-}
-
-function saveHistoryToStorage() {
-    try {
-        localStorage.setItem("vf_history", JSON.stringify(state.history));
-    } catch (_) {
-        showToast("Gagal menyimpan history ke localStorage.", "warning");
-    }
-}
-
-function handleSaveHistory() {
-    if (!state.finalPrompt) {
-        showToast("Tidak ada final prompt untuk disimpan.", "warning");
-        return;
-    }
-
-    const entry = {
-        id: generateId(),
-        title: generateTitle(state.basePrompt),
-        basePrompt: state.basePrompt,
-        finalPrompt: state.finalPrompt,
-        timestamp: new Date().toISOString(),
-    };
-
-    state.history.unshift(entry);
-
-    // Keep max 50 entries
-    if (state.history.length > 50) {
-        state.history = state.history.slice(0, 50);
-    }
-
-    saveHistoryToStorage();
-    showToast("Prompt disimpan ke history.", "success");
-}
-
-function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
-}
-
-function generateTitle(prompt) {
-    const cleaned = prompt.trim().replace(/\s+/g, " ");
-    if (cleaned.length <= 60) return cleaned;
-    return cleaned.substring(0, 57) + "...";
-}
-
-function renderHistory() {
-    loadHistory();
-
-    if (state.history.length === 0) {
-        dom.historyList.innerHTML = '<div class="history-empty">Belum ada history tersimpan.</div>';
-        return;
-    }
-
-    const fragment = document.createDocumentFragment();
-
-    for (const entry of state.history) {
-        const item = document.createElement("div");
-        item.className = "history-item";
-
-        const header = document.createElement("div");
-        header.className = "history-item-header";
-
-        const title = document.createElement("div");
-        title.className = "history-title";
-        title.textContent = entry.title;
-
-        const time = document.createElement("div");
-        time.className = "history-time";
-        time.textContent = formatTimestamp(entry.timestamp);
-
-        header.appendChild(title);
-        header.appendChild(time);
-
-        const base = document.createElement("div");
-        base.className = "history-base";
-        base.textContent = entry.basePrompt;
-
-        const actions = document.createElement("div");
-        actions.className = "history-actions";
-
-        const viewBtn = document.createElement("button");
-        viewBtn.className = "action-btn";
-        viewBtn.type = "button";
-        viewBtn.textContent = "VIEW";
-        viewBtn.setAttribute("aria-label", `View prompt: ${entry.title}`);
-        viewBtn.addEventListener("click", () => showHistoryView(entry));
-
-        const copyBtn = document.createElement("button");
-        copyBtn.className = "action-btn";
-        copyBtn.type = "button";
-        copyBtn.textContent = "COPY";
-        copyBtn.setAttribute("aria-label", `Copy prompt: ${entry.title}`);
-        copyBtn.addEventListener("click", async () => {
-            try {
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    await navigator.clipboard.writeText(entry.finalPrompt);
-                } else {
-                    const ta = document.createElement("textarea");
-                    ta.value = entry.finalPrompt;
-                    ta.style.position = "fixed";
-                    ta.style.left = "-9999px";
-                    ta.style.opacity = "0";
-                    document.body.appendChild(ta);
-                    ta.select();
-                    document.execCommand("copy");
-                    document.body.removeChild(ta);
-                }
-                showToast("Prompt disalin.", "success");
-            } catch (_) {
-                showToast("Gagal menyalin.", "error");
-            }
-        });
-
-        const deleteBtn = document.createElement("button");
-        deleteBtn.className = "action-btn danger-btn";
-        deleteBtn.type = "button";
-        deleteBtn.textContent = "DELETE";
-        deleteBtn.setAttribute("aria-label", `Delete prompt: ${entry.title}`);
-        deleteBtn.addEventListener("click", () => {
-            state.history = state.history.filter(h => h.id !== entry.id);
-            saveHistoryToStorage();
-            renderHistory();
-            showToast("History dihapus.", "info");
-        });
-
-        actions.appendChild(viewBtn);
-        actions.appendChild(copyBtn);
-        actions.appendChild(deleteBtn);
-
-        item.appendChild(header);
-        item.appendChild(base);
-        item.appendChild(actions);
-        fragment.appendChild(item);
-    }
-
-    dom.historyList.innerHTML = "";
-    dom.historyList.appendChild(fragment);
-}
-
-function showHistoryView(entry) {
-    const overlay = document.createElement("div");
-    overlay.className = "history-view-overlay";
-
-    const box = document.createElement("div");
-    box.className = "history-view-box";
-
-    const label = document.createElement("div");
-    label.className = "section-label";
-    label.textContent = entry.title;
-
-    const sublabel = document.createElement("div");
-    sublabel.className = "section-sublabel";
-    sublabel.textContent = formatTimestamp(entry.timestamp);
-
-    const baseLabel = document.createElement("div");
-    baseLabel.className = "section-sublabel";
-    baseLabel.style.marginTop = "12px";
-    baseLabel.textContent = "BASE PROMPT:";
-
-    const baseText = document.createElement("div");
-    baseText.className = "analysis-box";
-    baseText.style.marginBottom = "16px";
-    baseText.textContent = entry.basePrompt;
-
-    const finalLabel = document.createElement("div");
-    finalLabel.className = "section-sublabel";
-    finalLabel.textContent = "FINAL PROMPT:";
-
-    const textarea = document.createElement("textarea");
-    textarea.readOnly = true;
-    textarea.value = entry.finalPrompt;
-    textarea.rows = 14;
-    textarea.style.minHeight = "200px";
-
-    const actions = document.createElement("div");
-    actions.className = "history-view-actions";
-
-    const copyBtn = document.createElement("button");
-    copyBtn.className = "action-btn";
-    copyBtn.type = "button";
-    copyBtn.textContent = "COPY FINAL PROMPT";
-    copyBtn.addEventListener("click", async () => {
-        try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(entry.finalPrompt);
-            } else {
-                const ta = document.createElement("textarea");
-                ta.value = entry.finalPrompt;
-                ta.style.position = "fixed";
-                ta.style.left = "-9999px";
-                ta.style.opacity = "0";
-                document.body.appendChild(ta);
-                ta.select();
-                document.execCommand("copy");
-                document.body.removeChild(ta);
-            }
-            showToast("Prompt disalin.", "success");
-        } catch (_) {
-            showToast("Gagal menyalin.", "error");
-        }
-    });
-
-    const useBtn = document.createElement("button");
-    useBtn.className = "action-btn";
-    useBtn.type = "button";
-    useBtn.textContent = "USE AS BASE PROMPT";
-    useBtn.addEventListener("click", () => {
-        dom.basePrompt.value = entry.basePrompt;
-        state.basePrompt = entry.basePrompt;
-        updateCharCounter();
-        updateUpgradeBtn();
-        overlay.remove();
-        switchPanel("dashboard");
-        showToast("Prompt dimuat ke Base Prompt.", "info");
-    });
-
-    const closeBtn = document.createElement("button");
-    closeBtn.className = "action-btn danger-btn";
-    closeBtn.type = "button";
-    closeBtn.textContent = "CLOSE";
-    closeBtn.addEventListener("click", () => overlay.remove());
-
-    actions.appendChild(copyBtn);
-    actions.appendChild(useBtn);
-    actions.appendChild(closeBtn);
-
-    box.appendChild(label);
-    box.appendChild(sublabel);
-    box.appendChild(baseLabel);
-    box.appendChild(baseText);
-    box.appendChild(finalLabel);
-    box.appendChild(textarea);
-    box.appendChild(actions);
-    overlay.appendChild(box);
-
-    overlay.addEventListener("click", (e) => {
-        if (e.target === overlay) overlay.remove();
-    });
-
-    document.body.appendChild(overlay);
-}
-
-function formatTimestamp(iso) {
-    try {
-        const d = new Date(iso);
-        const pad = (n) => n.toString().padStart(2, "0");
-        return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    } catch (_) {
-        return iso;
-    }
-}
-
-// ================================================================
-// SETTINGS
-// ================================================================
-function updateSettingsPanel() {
-    if (state.unlocked && state.apiKey) {
-        dom.settingsApiStatus.textContent = "CONNECTED";
-        dom.settingsApiStatus.style.color = "var(--success)";
-    } else {
-        dom.settingsApiStatus.textContent = "NOT SET";
-        dom.settingsApiStatus.style.color = "var(--danger)";
-    }
-}
-
-function handleClearApiKey() {
-    state.apiKey = null;
-    state.unlocked = false;
-    dom.apiKeyInput.value = "";
-    dom.apiKeyInput.type = "password";
-    dom.toggleKeyVis.textContent = "SHOW";
-
-    dom.mainFeature.classList.remove("main-feature-visible");
-    dom.mainFeature.classList.add("main-feature-hidden");
-
-    dom.analysisSection.classList.add("hidden");
-    dom.optionsSection.classList.add("hidden");
-    dom.finalSection.classList.add("hidden");
-
-    showGateMsg("", "");
-
-    try {
-        localStorage.removeItem("vf_api_key");
-    } catch (_) {
-        // ignore
-    }
-
-    setStatus("ready", "SYSTEM READY");
-    updateSettingsPanel();
-    showToast("API Key dihapus.", "info");
-}
-
-function handleClearHistory() {
-    state.history = [];
-    saveHistoryToStorage();
-    renderHistory();
-    showToast("Semua history dihapus.", "info");
-}
+function handleFileDrop(files) {
+    for (const file of files) {
+        const ext = "." + file.name.split(".").pop().toLowerCase();
+        if (!ALLOWED_EXT.includes(ext)) { toast(`File type ${ext} not supported.`, "warning"); 
